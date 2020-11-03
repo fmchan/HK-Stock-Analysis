@@ -50,3 +50,7 @@ Thumbs.db
 
 # VS code settings
 .vscode/*
+
+# Data files
+.db
+.csv
