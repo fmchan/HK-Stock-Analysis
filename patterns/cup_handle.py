@@ -1,15 +1,10 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from pandas.plotting import register_matplotlib_converters
 from datetime import datetime, timedelta
 import os
 import sys
-import multiprocessing
 from scipy.signal import argrelextrema, argrelmin, argrelmax, find_peaks, find_peaks_cwt
 from collections import defaultdict
-from configs.settings import DATA_PATH, CURRENT_VOLUME_FILTER
-import services.price as price
 from patterns.all_patterns import Patterns
 
 smoothing = 0
