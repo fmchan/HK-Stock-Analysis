@@ -46,7 +46,7 @@ class DBHelper:
 
     def query_stock(self, provider, market, sid, start=datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d'), end=datetime.strftime(datetime.now(), '%Y-%m-%d'), letter_case=True):
         try:
-            cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+            cnx = sqlite3.connect(DB_PATH)
             query = f"""
                 SELECT * FROM stocks
                 WHERE sid = '{sid}'
@@ -57,9 +57,13 @@ class DBHelper:
             df = pd.read_sql_query(query, cnx)
             if letter_case:
                 df.rename(columns={'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
-                df.set_index('Date', inplace=True)
+                df.set_index('Date', inplace=True, drop=False)
+                df.index.names = ['DateTime']
+                df['Date'] = pd.to_datetime(df["Date"]).dt.strftime('%Y-%m-%d')
             else:
-                df.set_index('date', inplace=True)
+                df.set_index('date', inplace=True, drop=False)
+                df.index.names = ['datetime']
+                df['date'] = pd.to_datetime(df["date"]).dt.strftime('%Y-%m-%d')
             return df       
         except Exception as e:
             message = "Exception in query_stock: {}".format(e)
@@ -68,7 +72,7 @@ class DBHelper:
 
     def query_stock_by_volume(self, top, volume):
         try:
-            cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+            cnx = sqlite3.connect(DB_PATH)
             query = f"""
                 SELECT sid
                 FROM (
@@ -102,7 +106,7 @@ if __name__ == "__main__":
     # print(sqlite3.version)
     logger = Logger('MainLogger').setup_system_logger()
     db = DBHelper()
-    cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+    cnx = sqlite3.connect(DB_PATH)
     provider = 'YAHOO'
     sid = '0700.HK'
     market = 'HK'

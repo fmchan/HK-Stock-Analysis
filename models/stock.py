@@ -2,7 +2,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String, DateTime, create_engine, ForeignKey, Table, REAL
 from sqlalchemy.orm import relationship
 from configs.base import Base
-from configs.settings import DB_PATH
+from configs.settings import DB_ENGINE
 
 class Stock(Base):
     __tablename__ = 'stocks'
@@ -50,5 +50,5 @@ class Stock(Base):
                 'updated_date': self.updated_date
                }
 
-engine = create_engine(DB_PATH)
+engine = create_engine(DB_ENGINE)
 Base.metadata.create_all(engine)

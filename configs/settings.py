@@ -40,9 +40,11 @@ if platform.system() in ['Darwin', 'Windows']:
     LOG_PATH = 'D://temp//Stock-Patterns-Master//log/'
     DATA_PATH = 'data/'
     WEBDRIVER_PATH = 'exe/chromedriver.exe'
-    DB_PATH = 'sqlite:///stocks.db'
+    DB_PATH = 'stocks.db'
+    DB_ENGINE = 'sqlite:///stocks.db'
 else:
     LOG_PATH = '/var/local/apps/Stock-Patterns-Master/log/'
     DATA_PATH = '/usr/local/apps/Stock-Patterns-Master/data/'
     WEBDRIVER_PATH = '/usr/local/bin/chromedriver'
-    DB_PATH = 'sqlite:////root/stocks.db'
+    DB_PATH = '/root/stocks.db'
+    DB_ENGINE = 'sqlite:////root/stocks.db'

@@ -9,7 +9,9 @@ import services.price as price
 from configs.logger import Logger
 import patterns.cup_handle as cup_handle
 import patterns.td_differential_group as td_differential_group
+import patterns.vcp as vcp
 from dbhelper import DBHelper
+from datautils import pattern_utils
 
 def compute_features(df):
     df['Date'] = pd.to_datetime(df.index)
@@ -31,7 +33,7 @@ if __name__ == '__main__':
     # fail_stock_list = []
     # day_delta = 1_000
     # # price.insert_all_stocks(day_delta)
-    # # price.update_all_stocks('YAHOO', 'HK')
+    # price.update_all_stocks('YAHOO', 'HK')
     # price.update_failed_stocks('YAHOO', 'HK')
 
     # # sid = '8083.HK'
@@ -47,14 +49,21 @@ if __name__ == '__main__':
     count = 0
     for index, stock_df in stocks_df.iterrows():
         sid = stock_df['sid']
-        # print('processing: ', sid)
-        df = db.query_stock('YAHOO', 'HK', sid, start='2020-05-01')
-        if len(df) > 50 and df.iloc[-1]['Close'] > 1:
-            df = compute_features(df)
+        df = db.query_stock('YAHOO', 'HK', sid, start='2019-12-01', letter_case=False)
+        if len(df) > 50 and df.iloc[-1]['close'] > 1:
+            print("processing: {}".format(sid))
+            # df = compute_features(df)
             # # Cup & Handle
-            # cup_handle.detect_single(sid, df)
+            # cup_patterns = cup_handle.find_cup_patterns(df)
+            # pattern_utils.show_pair_patterns(cup_patterns)
 
             # TD Differential Group
-            td_differential_group.td_differential(sid, df)
-            td_differential_group.td_reverse_differential(sid, df)
-            td_differential_group.td_anti_differential(sid, df)
+            # differential_patterns = td_differential_group.find_differential_patterns(df)
+            # pattern_utils.show_single_patterns(differential_patterns)
+            # td_differential_group.td_differential(sid, df)
+            # td_differential_group.td_reverse_differential(sid, df)
+            # td_differential_group.td_anti_differential(sid, df)
+
+            # VCP
+            vcp_patterns = vcp.find_patterns(df)
+            pattern_utils.show_single_patterns(vcp_patterns)

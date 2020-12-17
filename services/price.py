@@ -36,7 +36,8 @@ def get_hist_stock_price(sid, start_date='2001-07-15', provider='YAHOO', market=
         if len(df) > 0:
             df['date'] = pd.to_datetime(df.index)
             df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume', 'Adj Close': 'adj_close'}, inplace=True)
-            cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+            cnx = sqlite3.connect(DB_PATH)
+            cnx.execute("PRAGMA journal_mode=WAL")
             df['provider'] = provider
             df['market'] = market
             df['sid'] = sid
@@ -78,7 +79,7 @@ def get_hist_stock_price(sid, start_date='2001-07-15', provider='YAHOO', market=
 def update_failed_stocks(provider, market, lower_limit=1, expire_mins=120):
     logger = logging.getLogger('MainLogger')
     fail_stock_list = []
-    cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+    cnx = sqlite3.connect(DB_PATH)
 
     stocks_df = get_failed_hk_stocks_df()
     for index, stock_df in stocks_df.iterrows():
@@ -96,14 +97,18 @@ def update_failed_stocks(provider, market, lower_limit=1, expire_mins=120):
 def update_all_stocks(provider, market, lower_limit=1, expire_mins=120):
     logger = logging.getLogger('MainLogger')
     fail_stock_list = []
-    cnx = sqlite3.connect(DB_PATH.replace('sqlite:', '').replace('/', ''))
+    cnx = sqlite3.connect(DB_PATH)
+    cnx.execute("PRAGMA journal_mode=WAL")
 
     present_ticker_ids = pd.read_sql("SELECT DISTINCT sid FROM stocks WHERE provider = '{}' and market = '{}'".format(provider, market), cnx)
     logger.info(present_ticker_ids)
     for sid in present_ticker_ids['sid']:
         sql = "SELECT date FROM stocks WHERE sid='{}'".format(sid)
         dates = pd.read_sql(sql, cnx)
-        last_date = dates.iloc[-1, 0]
+        if dates.empty:
+            last_date = datetime.strftime(datetime.now() - timedelta(200), '%Y-%m-%d')
+        else:
+            last_date = dates.iloc[-1, 0]
         logger.info('processing: {} from {}'.format(sid, str(last_date)))
         df = get_hist_stock_price(sid, start_date=last_date)
         if len(df) < lower_limit:
