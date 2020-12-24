@@ -49,21 +49,21 @@ if __name__ == '__main__':
     count = 0
     for index, stock_df in stocks_df.iterrows():
         sid = stock_df['sid']
-        df = db.query_stock('YAHOO', 'HK', sid, start='2019-12-01', letter_case=False)
+        df = db.query_stock('YAHOO', 'HK', sid, start='2019-01-01', letter_case=False)
         if len(df) > 50 and df.iloc[-1]['close'] > 1:
-            print("processing: {}".format(sid))
+            # print("processing: {}".format(sid))
             # df = compute_features(df)
             # # Cup & Handle
             # cup_patterns = cup_handle.find_cup_patterns(df)
-            # pattern_utils.show_pair_patterns(cup_patterns)
+            # pattern_utils.show_pair_patterns(sid, cup_patterns)
 
             # TD Differential Group
             # differential_patterns = td_differential_group.find_differential_patterns(df)
-            # pattern_utils.show_single_patterns(differential_patterns)
+            # pattern_utils.show_single_patterns(sid, differential_patterns)
             # td_differential_group.td_differential(sid, df)
             # td_differential_group.td_reverse_differential(sid, df)
             # td_differential_group.td_anti_differential(sid, df)
 
             # VCP
             vcp_patterns = vcp.find_patterns(df)
-            pattern_utils.show_single_patterns(vcp_patterns)
+            pattern_utils.show_single_patterns(sid, vcp_patterns)
