@@ -8,7 +8,7 @@ from pathlib import Path
 class Logger(object):
     def __init__(self, name):
         self.name = name
-        self.log_formatter = logging.Formatter('%(levelname)-4s | %(asctime)s.%(msecs)03d | %(filename)s:%(lineno)03d | %(message)s', '%H:%M:%S')
+        self.log_formatter = logging.Formatter("%(levelname)-4s | %(asctime)s.%(msecs)03d | %(filename)s:%(lineno)03d | %(message)s", "%H:%M:%S")
 
     def setup_system_logger(self):
         logger = logging.getLogger(self.name)

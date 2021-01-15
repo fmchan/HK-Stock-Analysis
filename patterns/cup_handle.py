@@ -129,7 +129,7 @@ def find_patterns(max_min, min_period=27, peak_depth=1.05, start_end_price_ratio
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
         print(exc_type, fname, exc_tb.tb_lineno)
         print(e)
-        return ''
+        return ""
 
 def find_cup_patterns(df):
     minmax = get_max_min(df, smoothing, window, neighbour, prominence, debug=False)
