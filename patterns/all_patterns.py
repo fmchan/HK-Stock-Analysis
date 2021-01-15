@@ -9,3 +9,4 @@ class Patterns(Enum):
     TD_ANTI_DIFFERENTIAL_ENTRY = 'td anti differential entry'
     TD_ANTI_DIFFERENTIAL_EXIT = 'td anti differential exit'
     VCP = 'vcp'
+    FLAT_BASE = 'flat base'
