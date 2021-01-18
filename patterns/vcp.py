@@ -12,13 +12,13 @@ def compute_vcp_features(df):
     df["sma_10"] = df["Close"].rolling(10).mean()
     df["sma_150"] = df["Close"].rolling(150).mean()
     df["sma_200"] =df["Close"].rolling(200).mean()
-    df["52w_low"] = df["Close"].rolling(250).min()
+    df["52w_low"] = df["Close"].rolling(52).min()
     return df
 
 def find_patterns(df):
     patterns = defaultdict(list)
     start_window_unit = 3
-    last_row_no = 30
+    last_row_no = 100
     temp_df = df.copy()
     temp_df = compute_vcp_features(temp_df)
     temp_df = temp_df.iloc[-last_row_no:]
