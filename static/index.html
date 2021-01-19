@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>Stock Patterns Founder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
+<script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+<script src="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+<style> body {font-family: 微软雅黑;} </style>
+</head>
+<body>
+<div class="container">
+  <br>
+  <h2>Stock Patterns Founder</h2>
+  <p>To get the stock patterns</p>
+  <div class="row" >
+    <form action="/getDatePatterns" method="post" target="_blank">
+      <table>
+        <tr>
+          <th>Date:</th>
+          <td>
+            <input id="trading_date" name="trading_date" type="date" required>
+          </td>
+        </tr>
+          <td>
+            <button type="submit" id="getDatePatterns">Find patterns</button>
+          </td>
+        </tr>
+      </table>
+      <br>
+    </form>
+  </div>
+</div>
+</body>
+<script>
+$(function(){
+  var $trading_date = $("#trading_date");
+  $trading_date.val(today);
+});
+</script>
+</html>

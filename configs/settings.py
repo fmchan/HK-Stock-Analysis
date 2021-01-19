@@ -5,6 +5,7 @@ import platform
 
 # output settings
 ALLOW_OVERWRITE = False # set False to read the data file instead of re-scraping
+EXCLUDE_HEADERS = []
 
 MIN_TEXT_NUM = 100
 SCROLL_NUM = 20

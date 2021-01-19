@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy import exc
 from models.stock import Stock
+from models.pattern import Pattern
 from datetime import date, timedelta
 import datetime as dt
 from configs.settings import DB_PATH
@@ -39,6 +40,23 @@ class DBHelper:
             return "done"
         except Exception as e:
             message = "Exception in insert_stock: %s" % e
+            self.logger.exception(message + str(e))
+            return message
+        finally:
+            session.close()
+
+    def insert_pattern(self, start_date, name, sid, end_date=None):
+        try:
+            self.logger.info("inserting {} pattern for sid {} at {}".format(name, sid, start_date))
+            session = Session()
+            result = session.query(Pattern).filter_by(start_date = start_date, end_date = end_date, name = name, sid = sid).first()
+            if result is None:
+                pattern = Pattern(start_date = start_date, end_date = end_date, name = name, sid = sid, created_date = datetime(datetime.today().year, datetime.today().month, datetime.today().day), updated_date = datetime(datetime.today().year, datetime.today().month, datetime.today().day))
+                session.add(pattern)
+            session.commit()
+            return "done"
+        except Exception as e:
+            message = "Exception in insert_pattern: %s" % e
             self.logger.exception(message + str(e))
             return message
         finally:
@@ -97,6 +115,40 @@ class DBHelper:
             self.logger.exception(message)
             return message
 
+    def query_pattern(self, start_date, end_date=None, name=None):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            query = f"""
+                SELECT start_date, end_date, name, sid FROM patterns
+                WHERE date(start_date) = '{start_date}'
+                ORDER BY name
+            """
+            df = pd.read_sql_query(query, cnx)
+            df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
+            # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
+            return df       
+        except Exception as e:
+            message = "Exception in query_stock: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def query_stock_pattern(self, sid, name):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            query = f"""
+                SELECT start_date, end_date, name, sid FROM patterns
+                WHERE sid = '{sid}'
+                and name = '{name}'
+            """
+            df = pd.read_sql_query(query, cnx)
+            df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
+            # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
+            return df       
+        except Exception as e:
+            message = "Exception in query_stock: {}".format(e)
+            self.logger.exception(message)
+            return message
+
     def custom_alter(self):
         add_column = DDL('ALTER TABLE stocks ADD COLUMN newcol VARCHAR(300)')
         engine.execute(add_column)
@@ -110,5 +162,6 @@ if __name__ == "__main__":
     provider = 'YAHOO'
     sid = '0700.HK'
     market = 'HK'
-    df = db.query_stock(provider, market, sid, start='2019-04-01')
+    # df = db.query_stock(provider, market, sid, start='2019-04-01')
+    df = db.query_pattern(start_date='2021-01-15')
     print(df)

@@ -55,20 +55,20 @@ if __name__ == "__main__":
             # print("processing: {}".format(sid))
             # df = compute_features(df)
             # # Cup & Handle
-            # cup_patterns = cup_handle.find_cup_patterns(df)
+            # cup_patterns = cup_handle.find_cup_patterns(df, sid)
             # pattern_utils.show_pair_patterns(sid, cup_patterns)
 
             # TD Differential Group
-            # differential_patterns = td_differential_group.find_differential_patterns(df)
+            # differential_patterns = td_differential_group.find_differential_patterns(df, sid)
             # pattern_utils.show_single_patterns(sid, differential_patterns)
             # td_differential_group.td_differential(sid, df)
             # td_differential_group.td_reverse_differential(sid, df)
             # td_differential_group.td_anti_differential(sid, df)
 
             # VCP
-            # vcp_patterns = vcp.find_patterns(df)
-            # pattern_utils.show_single_patterns(sid, vcp_patterns)
+            vcp_patterns = vcp.find_patterns(df, sid)
+            pattern_utils.show_single_patterns(sid, vcp_patterns)
 
             # Trend Lines
-            flat_base_patterns = trendline.find_flat_base_patterns(df)
-            pattern_utils.show_pair_patterns(sid, flat_base_patterns)
+            # flat_base_patterns = trendline.find_flat_base_patterns(df, sid)
+            # pattern_utils.show_pair_patterns(sid, flat_base_patterns)

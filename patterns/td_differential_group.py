@@ -4,6 +4,8 @@ from pandas.plotting import register_matplotlib_converters
 from datetime import datetime, timedelta
 from collections import defaultdict
 from patterns.all_patterns import Patterns
+from dbhelper import DBHelper
+from datetime import datetime
 
 def compute_differential_features(df):
     df["true_low"] = df[["Low", "close_1d"]].min(axis=1)
@@ -12,11 +14,12 @@ def compute_differential_features(df):
     df["selling_pressure"] = df["Close"] - df["true_high"]
     return df
 
-def find_differential_patterns(df):
+def find_differential_patterns(df, sid):
     patterns = defaultdict(list)
     temp_df = df.copy()
     temp_df = compute_differential_features(temp_df)
     start_window_unit = 6
+    db = DBHelpder()
     for i in range(start_window_unit, len(temp_df)+1):
         temp_sub_df = temp_df.iloc[i-start_window_unit:i]
         # print(temp_sub_df)

@@ -6,6 +6,8 @@ import sys
 from scipy.signal import argrelextrema, argrelmin, argrelmax, find_peaks, find_peaks_cwt
 from collections import defaultdict
 from patterns.all_patterns import Patterns
+from dbhelper import DBHelper
+from datetime import datetime
 
 smoothing = 0
 window = 0
@@ -67,9 +69,10 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
         print(e)
         return ""
 
-def find_patterns(max_min, min_period=27, peak_depth=1.05, start_end_price_ratio_difference=0.07, max_radius_difference=5, step_depth=1.01):
+def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_ratio_difference=0.07, max_radius_difference=5, step_depth=1.01):
     try:
         patterns = defaultdict(list)
+        db = DBHelper()
         # window_units = 6
         for window_units in range(3, 10):
             for i in range(window_units, len(max_min)+1):
@@ -121,7 +124,14 @@ def find_patterns(max_min, min_period=27, peak_depth=1.05, start_end_price_ratio
                     and 1 - start_end_price_ratio_difference < start_end_price_ratio < 1 + start_end_price_ratio_difference \
                     and pattern_day_difference >= min_period \
                     and abs(entry_bottom_day_difference - bottom_end_day_difference) <= max_radius_difference:
-                        patterns[Patterns.CUP_HANDLE.name].append((window.iloc[0]["Date"], window.iloc[-1]["Date"]))
+                        # patterns[Patterns.CUP_HANDLE.name].append((window.iloc[0]["Date"], window.iloc[-1]["Date"]))
+                        start_date = window.iloc[0]["Date"]
+                        end_date = window.iloc[-1]["Date"]
+                        name = Patterns.CUP_HANDLE.name
+                        patterns[name].append((start_date, end_date))
+                        start_date = datetime.strptime(start_date, "%Y-%m-%d")
+                        end_date = datetime.strptime(end_date, "%Y-%m-%d")
+                        db.insert_pattern(start_date, name, sid, end_date)
 
         return patterns
     except Exception as e:
@@ -131,8 +141,8 @@ def find_patterns(max_min, min_period=27, peak_depth=1.05, start_end_price_ratio
         print(e)
         return ""
 
-def find_cup_patterns(df):
+def find_cup_patterns(df, sid):
     minmax = get_max_min(df, smoothing, window, neighbour, prominence, debug=False)
     # print(minmax[["Date", "Close", "Volume"]].tail(20))
-    patterns = find_patterns(minmax, min_period, peak_depth, start_end_price_ratio_difference, max_radius_difference, step_depth)
+    patterns = find_patterns(sid, minmax, min_period, peak_depth, start_end_price_ratio_difference, max_radius_difference, step_depth)
     return patterns
