@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import os
 import sys
 import multiprocessing
-from configs.settings import DATA_PATH, CURRENT_VOLUME_FILTER
+from configs.settings import DATA_PATH, CURRENT_VOLUME_FILTER, DB_QUERY_START_DATE
 import services.price as price
 from configs.logger import Logger
 import patterns.cup_handle as cup_handle
@@ -47,16 +47,16 @@ if __name__ == "__main__":
 
     db = DBHelper()
     stocks_df = db.query_stock_by_volume(5, CURRENT_VOLUME_FILTER)
-    count = 0
     for index, stock_df in stocks_df.iterrows():
         sid = stock_df["sid"]
-        df = db.query_stock("YAHOO", "HK", sid, start="2019-01-01", letter_case=True)
-        if len(df) > 50 and df.iloc[-1]["Close"] > 1:
+        df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
+        if len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
             # print("processing: {}".format(sid))
             # df = compute_features(df)
+
             # # Cup & Handle
-            # cup_patterns = cup_handle.find_cup_patterns(df, sid)
-            # pattern_utils.show_pair_patterns(sid, cup_patterns)
+            cup_patterns = cup_handle.find_cup_patterns(df, sid)
+            pattern_utils.show_pair_patterns(sid, cup_patterns)
 
             # TD Differential Group
             # differential_patterns = td_differential_group.find_differential_patterns(df, sid)

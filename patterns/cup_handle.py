@@ -53,6 +53,7 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
         minima = pd.DataFrame(df.loc[price_local_min_dt])
         max_min = pd.concat([maxima, minima]).sort_index()
         max_min.index.name = "DateTime"
+        max_min['Date'] = pd.to_datetime(max_min["Date"])
         max_min = max_min.reset_index()
         max_min = max_min[~max_min.DateTime.duplicated()]
         # p = df.reset_index()
@@ -73,12 +74,15 @@ def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_
     try:
         patterns = defaultdict(list)
         db = DBHelper()
+        previous_start_date_list = []
         # window_units = 6
         for window_units in range(3, 10):
             for i in range(window_units, len(max_min)+1):
                 window = max_min.iloc[i - window_units:i]
+                if window.iloc[0]["Date"] in previous_start_date_list:
+                    break
                 if window.index[-1] - window.index[0] > 100:
-                    continue   
+                    continue
 
                 closes = []
                 volumes = []
@@ -129,10 +133,8 @@ def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_
                         end_date = window.iloc[-1]["Date"]
                         name = Patterns.CUP_HANDLE.name
                         patterns[name].append((start_date, end_date))
-                        start_date = datetime.strptime(start_date, "%Y-%m-%d")
-                        end_date = datetime.strptime(end_date, "%Y-%m-%d")
-                        db.insert_pattern(start_date, name, sid, end_date)
-
+                        db.insert_pattern(end_date, name, sid) # pattern_end_date is buying date
+                        previous_start_date_list.append(start_date)
         return patterns
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()

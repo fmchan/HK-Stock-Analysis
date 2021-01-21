@@ -11,7 +11,7 @@ import patterns.vcp as vcp
 from dbhelper import DBHelper
 from datautils import pattern_utils
 import pandas as pd
-from configs.settings import DATA_PATH, CURRENT_VOLUME_FILTER
+from configs.settings import DATA_PATH, CURRENT_VOLUME_FILTER, DB_QUERY_START_DATE
 
 def update_stocks_job():
     logger.info("update_stocks_job scheduler start")
@@ -22,15 +22,15 @@ def update_patterns_job():
     logger.info("update_patterns_job scheduler start")
     db = DBHelper()
     stocks_df = db.query_stock_by_volume(5, CURRENT_VOLUME_FILTER)
-    count = 0
     for index, stock_df in stocks_df.iterrows():
         sid = stock_df["sid"]
-        df = db.query_stock("YAHOO", "HK", sid, start="2019-01-01", letter_case=True)
-        if len(df) > 50 and df.iloc[-1]["Close"] > 1:
+        df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
+        if len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
             # print("processing: {}".format(sid))
             # df = compute_features(df)
+
             # # Cup & Handle
-            # cup_patterns = cup_handle.find_cup_patterns(df, sid)
+            cup_patterns = cup_handle.find_cup_patterns(df, sid)
             # pattern_utils.show_pair_patterns(sid, cup_patterns)
 
             # TD Differential Group
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     logger.info("stocks price scheduler just restarted")
     scheduler = BackgroundScheduler()
     scheduler.add_job(update_stocks_job, "cron", hour="0", minute="0")
-    scheduler.add_job(update_patterns_job, "cron", hour="3", minute="0")
+    scheduler.add_job(update_patterns_job, "cron", hour="4", minute="0")
     scheduler.start()
     while True:
         schedule.run_pending()

@@ -14,7 +14,7 @@ def compute_vcp_features(df):
     df["sma_10"] = df["Close"].rolling(10).mean()
     df["sma_150"] = df["Close"].rolling(150).mean()
     df["sma_200"] =df["Close"].rolling(200).mean()
-    df["52w_low"] = df["Close"].rolling(52).min()
+    df["52w_low"] = df["Close"].rolling('365D').min() # use 365D is more accurated than using 260 (52*5)
     return df
 
 def find_patterns(df, sid, last_row_no=100):

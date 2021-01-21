@@ -14,13 +14,15 @@ SCROLL_NUM = 20
 SECOND_TIME_OUT = 20
 SCROLL_PAUSE_TIME = 1
 SCRAP_PAUSE_TIME = 5
+DB_QUERY_START_DATE = "2019-01-01"
 
 # TA settings
 CURRENT_VOLUME_FILTER = 1_000_000
 
 # flask config
-HOST = "192.168.232.96"
-PORT = 5000
+# HOST = "192.168.232.96"
+HOST = "192.168.2.225"
+PORT = 3050
 
 # web driver config
 options = Options()
@@ -38,14 +40,14 @@ options.add_experimental_option("prefs", {
 
 # config by platform
 if platform.system() in ["Darwin", "Windows"]:
-    LOG_PATH = "D://temp//Stock-Patterns-Master//log/"
+    LOG_PATH = "D://temp//stock-analysis//log/"
     DATA_PATH = "data/"
     WEBDRIVER_PATH = "exe/chromedriver.exe"
     DB_PATH = "stocks.db"
     DB_ENGINE = "sqlite:///stocks.db"
 else:
-    LOG_PATH = "/var/local/apps/Stock-Patterns-Master/log/"
-    DATA_PATH = "/usr/local/apps/Stock-Patterns-Master/data/"
+    LOG_PATH = "/var/local/apps/stock-analysis/log/"
+    DATA_PATH = "/usr/local/apps/stock-analysis/data/"
     WEBDRIVER_PATH = "/usr/local/bin/chromedriver"
     DB_PATH = "/root/stocks.db"
     DB_ENGINE = "sqlite:////root/stocks.db"

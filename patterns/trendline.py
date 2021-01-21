@@ -105,7 +105,7 @@ def find_flat_base_patterns(df, sid, order=3, rel_tol=1, min_pattern=10):
             patterns[name].append((start_date, end_date))
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
-            db.insert_pattern(start_date, name, sid, end_date)
+            db.insert_pattern(end_date, name, sid) # pattern_end_date is buying date
         elif is_current_flat_base and not is_previous_flat_base:
             start_pattern_index = i
 
