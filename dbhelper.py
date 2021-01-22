@@ -122,9 +122,11 @@ class DBHelper:
             cnx = sqlite3.connect(DB_PATH)
             query = f"""
                 SELECT start_date, end_date, name, sid FROM patterns
-                WHERE date(start_date) = '{start_date}'
-                ORDER BY name desc, sid
+                WHERE date(start_date) = '{start_date}' 
             """
+            if name is not None:
+                query += f" and name = '{name}'"
+            query += " ORDER BY name desc, sid"
             df = pd.read_sql_query(query, cnx)
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
@@ -143,6 +145,7 @@ class DBHelper:
             """
             if name is not None:
                 query += f" and name = '{name}'"
+            query += " ORDER BY name desc"
             df = pd.read_sql_query(query, cnx)
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')

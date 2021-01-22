@@ -22,6 +22,17 @@
             <input id="trading_date" name="trading_date" type="date" required>
           </td>
         </tr>
+        <tr>
+          <th>Pattern:</th>
+          <td>
+            <select id="pattern_name" name="pattern_name" required>
+              <option selected="selected" value="VCP">VCP</option>
+              <option value="VCP2">VCP2</option>
+              <option value="CUP_HANDLE">Cup & Handle</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
           <td>
             <button type="submit" id="getStockPatterns">Find patterns</button>
           </td>
@@ -35,6 +46,12 @@
 <script>
 $(function(){
   var $trading_date = $("#trading_date");
+  var date = new Date();
+  date.setDate(date.getDate() - 1);
+  var day = ("0" + date.getDate()).slice(-2);
+  var month = ("0" + (date.getMonth() + 1)).slice(-2);
+  var year = date.getFullYear();
+  var today = year + "-" + month + "-" + day;
   $trading_date.val(today);
 });
 </script>
