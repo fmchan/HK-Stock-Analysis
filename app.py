@@ -92,9 +92,7 @@ def _get_stock_output(trading_date, sid, pattern_name):
     plt.close("all")
 
     data_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="inner")
-    data_df = data_df.round(3)
-    data_df["52w_low_pct_chg"] = data_df["52w_low_pct_chg"].astype(str) + "%"
-    data_df["52w_high_pct_chg"] = data_df["52w_high_pct_chg"].astype(str) + "%"
+    data_df = _post_process_features(data_df)
     data_df.insert(0, "pattern", pattern_name) # loc at first
     data_df.drop(["pattern", "start_date", "end_date", "name", "sid_x", "sid_y"], axis=1, inplace=True)
 
@@ -104,6 +102,12 @@ def _get_stock_output(trading_date, sid, pattern_name):
     converted_output += "<div class='row'><img src='%s'></div><br>" %(aastock_chart_image_url)
     converted_output += "<div style='height: 50px !important;'></div></section><br>"
     return converted_output
+
+def _post_process_features(df):
+    df["52w_low_pct_chg"] = df["52w_low_pct_chg"].round().astype(int).astype(str) + "%"
+    df["52w_high_pct_chg"] = df["52w_high_pct_chg"].round().astype(int).astype(str) + "%"
+    df = df.round(3)
+    return df
 
 def _compute_pattern_features(pattern_name, df):
     if pattern_name in ["VCP", "VCP2"]:
