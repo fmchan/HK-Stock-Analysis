@@ -8,6 +8,7 @@ from collections import defaultdict
 from patterns.all_patterns import Patterns
 from dbhelper import DBHelper
 from datetime import datetime
+import logging
 
 smoothing = 0
 window = 0
@@ -23,6 +24,7 @@ step_depth = 1.01
 start_end_price_ratio_difference = 0.07
 
 def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False):
+    logger = logging.getLogger('MainLogger')
     try:
         if neighbour == 0: # min neighbour is 1
             neighbour = 1
@@ -66,11 +68,12 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(exc_type, fname, exc_tb.tb_lineno)
-        print(e)
+        logger.error(exc_type, fname, exc_tb.tb_lineno)
+        logger.error(e)
         return ""
 
 def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_ratio_difference=0.07, max_radius_difference=5, step_depth=1.01):
+    logger = logging.getLogger('MainLogger')
     try:
         patterns = defaultdict(list)
         db = DBHelper()
@@ -139,8 +142,8 @@ def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        print(exc_type, fname, exc_tb.tb_lineno)
-        print(e)
+        logger.error(exc_type, fname, exc_tb.tb_lineno)
+        logger.error(e)
         return ""
 
 def find_cup_patterns(df, sid):

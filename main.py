@@ -46,12 +46,14 @@ if __name__ == "__main__":
     # sid = "3838.HK"
 
     db = DBHelper()
+    print("processing analysis")
     stocks_df = db.query_stock_by_volume(5, CURRENT_VOLUME_FILTER)
+    print(len(stocks_df))
     for index, stock_df in stocks_df.iterrows():
         sid = stock_df["sid"]
         df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
         if len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
-            # print("processing: {}".format(sid))
+            print("processing: {}".format(sid))
             # df = compute_features(df)
 
             # # Cup & Handle

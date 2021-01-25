@@ -5,6 +5,7 @@ from patterns.all_patterns import Patterns
 import pandas_ta as ta
 from dbhelper import DBHelper
 from datetime import datetime
+import logging
 
 volume_rolling_period = 5
 
@@ -23,6 +24,7 @@ def compute_vcp_features(df):
 
 def find_patterns(df, sid, last_row_no=100):
     db = DBHelper()
+    logger = logging.getLogger('MainLogger')
     patterns = defaultdict(list)
     start_window_unit = 3
     temp_df = df.copy()

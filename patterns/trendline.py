@@ -6,6 +6,7 @@ from patterns.all_patterns import Patterns
 from scipy.signal import argrelextrema
 from dbhelper import DBHelper
 from datetime import datetime
+import logging
 
 def compute_trendline_features(df, order):
     df["max_close"] = df.iloc[argrelextrema(df["Close"].values, np.greater_equal, order=order)[0]]["Close"]
@@ -28,6 +29,7 @@ def find_descending_triangle(df, order=3, rel_up_tol=1, rel_down_tol=1, min_patt
     pass
 
 def find_flat_base_patterns(df, sid, order=3, rel_tol=1, min_pattern=10):
+    logger = logging.getLogger('MainLogger')
     patterns = defaultdict(list)
     temp_df = df.copy()
     temp_df = compute_trendline_features(temp_df, order)

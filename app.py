@@ -44,15 +44,15 @@ def getStockPatterns():
         # for sid in sorted_list:
         #     converted_output += "<td><a href='#%s.%s'>%s</a></td></tr><tr>" %(sid, pattern_name, sid)
         # converted_output += "</tr></table><br>"
-        converted_output = "<div class='sidediv'><nav><ul>"
+        converted_output = "<div><nav class='sidediv'><ul>"
         for sid in sorted_list:
             converted_output += "<li><a href='#%s.%s'>%s</a></li>" %(sid, pattern_name, sid)
-        converted_output += "</ul></nav></div>"
+        converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
         for sid in sorted_list:
             converted_output += _get_stock_output(trading_date, sid, pattern_name)
-        converted_output += "</div><br>"
+        converted_output += "</div></div><br>"
 
         # return converted_output
         return render_template('result.html', trading_date = trading_date, content = converted_output)
@@ -85,7 +85,7 @@ def _get_stock_output(trading_date, sid, pattern_name):
     ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
     ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
     img = io.BytesIO()
-    plt.savefig(img, format="png")
+    plt.savefig(img, format="png", bbox_inches="tight")
     img.seek(0)
     pattern_obj = base64.b64encode(img.getvalue()).decode()
     plt.clf()

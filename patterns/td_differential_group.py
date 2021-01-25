@@ -6,6 +6,7 @@ from collections import defaultdict
 from patterns.all_patterns import Patterns
 from dbhelper import DBHelper
 from datetime import datetime
+import logging
 
 def compute_differential_features(df):
     df["true_low"] = df[["Low", "close_1d"]].min(axis=1)
@@ -15,6 +16,7 @@ def compute_differential_features(df):
     return df
 
 def find_differential_patterns(df, sid):
+    logger = logging.getLogger('MainLogger')
     patterns = defaultdict(list)
     temp_df = df.copy()
     temp_df = compute_differential_features(temp_df)
