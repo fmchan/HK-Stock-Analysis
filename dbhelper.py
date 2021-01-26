@@ -62,7 +62,7 @@ class DBHelper:
         finally:
             session.close()
 
-    def query_stock(self, provider, market, sid, start=datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d'), end=datetime.strftime(datetime.now(), '%Y-%m-%d'), letter_case=True):
+    def query_stock(self, provider, market, sid, start=datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d'), end=datetime.strftime(datetime.now()+timedelta(1), '%Y-%m-%d'), letter_case=True):
         try:
             cnx = sqlite3.connect(DB_PATH)
             query = f"""

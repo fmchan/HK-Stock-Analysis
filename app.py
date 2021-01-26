@@ -34,8 +34,8 @@ def getStockPatterns():
     logger.info("start finding [%s] patterns which dated on [%s]"%(pattern_name, trading_date))
 
     patterns_df = db.query_pattern(start_date=trading_date, name=pattern_name)
+    logger.info("total stocks: [%s] "%(len(patterns_df)))
     if len(patterns_df) > 0:
-        print("total stocks: ", len(patterns_df))
         sid_set = set(patterns_df["sid"])
         sorted_list = sorted(sid_set)
 
@@ -60,6 +60,7 @@ def getStockPatterns():
         return "no pattern found"
 
 def _get_stock_output(trading_date, sid, pattern_name):
+    logger.info("getting output for %s "%(sid))
     aastock_code = sid.split(".")[0].zfill(5)
     aastock_dynamic_chart_image_url = "http://www.aastocks.com/tc/stocks/quote/dynamic-chart.aspx?symbol={}".format(aastock_code)
     aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
@@ -101,6 +102,7 @@ def _get_stock_output(trading_date, sid, pattern_name):
     converted_output += "<div class='row'><img src='data:image/png;base64,%s'></div><br>" %(pattern_obj)
     converted_output += "<div class='row'><img src='%s'></div><br>" %(aastock_chart_image_url)
     converted_output += "<div style='height: 50px !important;'></div></section><br>"
+    logger.info("total patterns for [%s]: [%s] "%(sid, len(data_df)))
     return converted_output
 
 def _post_process_features(df):

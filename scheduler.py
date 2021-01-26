@@ -24,30 +24,34 @@ def update_patterns_job():
     stocks_df = db.query_stock_by_volume(5, CURRENT_VOLUME_FILTER)
     logger.info(len(stocks_df))
     for index, stock_df in stocks_df.iterrows():
-        sid = stock_df["sid"]
-        df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
-        if len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
+        try:
+            sid = stock_df["sid"]
             logger.info("processing: {}".format(sid))
-            # df = compute_features(df)
+            df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
+            if isinstance(df, pd.DataFrame) and len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
+                # df = compute_features(df)
 
-            # # Cup & Handle
-            cup_patterns = cup_handle.find_cup_patterns(df, sid)
-            # pattern_utils.show_pair_patterns(sid, cup_patterns)
+                # # Cup & Handle
+                cup_patterns = cup_handle.find_cup_patterns(df, sid)
+                # pattern_utils.show_pair_patterns(sid, cup_patterns)
 
-            # TD Differential Group
-            # differential_patterns = td_differential_group.find_differential_patterns(df, sid)
-            # pattern_utils.show_single_patterns(sid, differential_patterns)
-            # td_differential_group.td_differential(sid, df)
-            # td_differential_group.td_reverse_differential(sid, df)
-            # td_differential_group.td_anti_differential(sid, df)
+                # TD Differential Group
+                # differential_patterns = td_differential_group.find_differential_patterns(df, sid)
+                # pattern_utils.show_single_patterns(sid, differential_patterns)
+                # td_differential_group.td_differential(sid, df)
+                # td_differential_group.td_reverse_differential(sid, df)
+                # td_differential_group.td_anti_differential(sid, df)
 
-            # VCP
-            vcp_patterns = vcp.find_patterns(df, sid, last_row_no=3) # only compute last 3 rows
-            # pattern_utils.show_single_patterns(sid, vcp_patterns)
+                # VCP
+                vcp_patterns = vcp.find_patterns(df, sid, last_row_no=3) # only compute last 3 rows
+                # pattern_utils.show_single_patterns(sid, vcp_patterns)
 
-            # Trend Lines
-            # flat_base_patterns = trendline.find_flat_base_patterns(df, sid)
-            # pattern_utils.show_pair_patterns(sid, flat_base_patterns)
+                # Trend Lines
+                # flat_base_patterns = trendline.find_flat_base_patterns(df, sid)
+                # pattern_utils.show_pair_patterns(sid, flat_base_patterns)
+        except Exception as e:
+            message = "Exception in update_patterns_job for %s: %s" % sid, e
+            logger.exception(message + str(e))
     logger.info("scheduler task end")
 
 if __name__ == "__main__":
