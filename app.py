@@ -16,18 +16,24 @@ import base64
 import json
 import json as json_parser
 from collections import OrderedDict
+from flask_caching import Cache
 
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
 app.config["JSON_AS_ASCII"] = False
+cache = Cache(app, config={"CACHE_TYPE": "simple"})
 logger = Logger("MainLogger").setup_system_logger()
 db = DBHelper()
+
+def make_cache_key(*args, **kwargs):
+    return request.form.get("trading_date"), request.form.get("pattern_name")
 
 @app.route("/")
 def index():
 	  return app.send_static_file("index.html")
 
 @app.route("/getStockPatterns", methods=["GET", "POST"])
+@cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getStockPatterns():
     trading_date = request.form.get("trading_date")
     pattern_name = request.form.get("pattern_name")
