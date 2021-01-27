@@ -16,9 +16,9 @@ def compute_vcp_features(df):
     df["sma_50"] = df["Close"].rolling(50).mean()
     df["sma_150"] = df["Close"].rolling(150).mean()
     df["sma_200"] =df["Close"].rolling(200).mean()
-    df["52w_low"] = df["Low"].rolling('365D').min() # use 365D is more accurated than using 260 (52*5)
+    df["52w_low"] = df["Close"].rolling('365D').min() # use 365D is more accurated than using 260 (52*5)
     df["52w_low_pct_chg"] = (df["Close"] - df["52w_low"]) / df["52w_low"] * 100
-    df["52w_high"] = df["High"].rolling('365D').max() # use 365D is more accurated than using 260 (52*5)
+    df["52w_high"] = df["Close"].rolling('365D').max() # use 365D is more accurated than using 260 (52*5)
     df["52w_high_pct_chg"] = (df["Close"] - df["52w_high"]) / df["52w_high"] * 100
     return df
 

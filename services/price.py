@@ -109,7 +109,10 @@ def update_all_stocks(provider, market, lower_limit=1, expire_mins=120):
             last_date = datetime.strftime(datetime.now() - timedelta(200), '%Y-%m-%d')
         else:
             last_date = dates.iloc[-1, 0]
-        logger.info('processing: {} from {}'.format(sid, str(last_date)))
+        if last_date[0:10] == datetime.strftime(datetime.now(), '%Y-%m-%d'):
+            logger.info('bypassing updating: {} from {}'.format(sid, str(last_date)))    
+        else:
+            logger.info('processing updating: {} from {}'.format(sid, str(last_date)))
         df = get_hist_stock_price(sid, start_date=last_date)
         if len(df) < lower_limit:
             fail_stock_list.append(sid)

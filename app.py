@@ -17,6 +17,7 @@ import json
 import json as json_parser
 from collections import OrderedDict
 from flask_caching import Cache
+from dateutil.relativedelta import *
 
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
@@ -82,7 +83,10 @@ def _get_stock_output(trading_date, sid, pattern_name):
     stock_pattern_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="right")
     stock_pattern_df["start_date"] = stock_pattern_df["start_date"].astype(str)
     stock_pattern_df["pattern_point"] = np.where(stock_pattern_df["start_date"] == stock_pattern_df["date"], stock_pattern_df["close"]*1.02, None)
-    stock_pattern_df.loc[-120:] # show latest 6 months (20 days * 6)
+    past_6_month = (datetime.now() - relativedelta(months=6))
+    stock_pattern_df["date"] = pd.to_datetime(stock_pattern_df["date"])
+    stock_pattern_df = stock_pattern_df[stock_pattern_df["date"] > past_6_month]
+    # stock_pattern_df = stock_pattern_df.iloc[-120:] # show latest 6 months (20 days * 6)
     fig, ax = plt.subplots(figsize=(10, 4))
     if pattern_name in ["VCP", "VCP2"]:
         stock_pattern_df = stock_pattern_df[(stock_pattern_df["sma_200"] > 0)]
