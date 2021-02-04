@@ -24,7 +24,6 @@ app = Flask(__name__, template_folder="static")
 app.config["JSON_AS_ASCII"] = False
 cache = Cache(app, config={"CACHE_TYPE": "simple"})
 logger = Logger("MainLogger").setup_system_logger()
-db = DBHelper()
 
 def make_cache_key(*args, **kwargs):
     return request.form.get("trading_date"), request.form.get("pattern_name")
@@ -36,6 +35,7 @@ def index():
 @app.route("/getStockPatterns", methods=["GET", "POST"])
 @cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getStockPatterns():
+    db = DBHelper()
     trading_date = request.form.get("trading_date")
     pattern_name = request.form.get("pattern_name")
     logger.info("start finding [%s] patterns which dated on [%s]"%(pattern_name, trading_date))
@@ -58,7 +58,7 @@ def getStockPatterns():
 
         converted_output += "<div class='content'>"
         for sid in sorted_list:
-            converted_output += _get_stock_output(trading_date, sid, pattern_name)
+            converted_output += _get_stock_output(db, trading_date, sid, pattern_name)
         converted_output += "</div></div><br>"
 
         # return converted_output
@@ -66,14 +66,14 @@ def getStockPatterns():
     else:
         return "no pattern found"
 
-def _get_stock_output(trading_date, sid, pattern_name):
+def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
     logger.info("getting output for %s "%(sid))
     aastock_code = sid.split(".")[0].zfill(5)
     aastock_dynamic_chart_image_url = "http://www.aastocks.com/tc/stocks/quote/dynamic-chart.aspx?symbol={}".format(aastock_code)
     aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
 
     df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
-    df = _compute_pattern_features(pattern_name, df)
+    df = _compute_pattern_features(pattern_name, df, bin_volume)
     df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
 
     plot_df = df.copy()
@@ -93,8 +93,18 @@ def _get_stock_output(trading_date, sid, pattern_name):
         stock_pattern_df.plot(x="date", y=["close", "sma_50", "sma_150", "sma_200", "52w_low", "52w_high"], ax=ax)
     elif "CUP_HANDLE" == pattern_name:
         stock_pattern_df.plot(x="date", y=["close"], ax=ax)
+
+    if bin_volume:
+        ax2 = ax.twiny()
+        ax2.hist(stock_pattern_df["close"], bins=30, weights=stock_pattern_df["cum_volume_pect"], orientation="horizontal", alpha=0.3, label="volume", color="orange")
+        # ax2.hist(stock_pattern_df['close'], bins=100, weights=stock_pattern_df['volume'], orientation='horizontal', alpha=0.3, label="volume", color="darkblue")[0:2]
+        ax2.set_xlim(ax2.get_xlim()[::-1])
+        ax2.yaxis.tick_right()
+        ax2.set(xlabel="cum_volume_pect")
+
     ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
     ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
+
     img = io.BytesIO()
     plt.savefig(img, format="png", bbox_inches="tight")
     img.seek(0)
@@ -121,10 +131,31 @@ def _post_process_features(df):
     df = df.round(3)
     return df
 
-def _compute_pattern_features(pattern_name, df):
+def _compute_pattern_features(pattern_name, df, bin_volume=False):
+    if bin_volume:
+        price_list = df["Close"].value_counts()
+        price_list = pd.DataFrame(price_list)
+        for prc in price_list.index:
+            cnt_q = df[df["Close"]==prc]["Volume"].sum()
+            price_list.loc[prc, "cum_volume"] = cnt_q
+        cyq_sum = price_list["cum_volume"].sum()
+        price_list["cum_volume_pect"] = price_list["cum_volume"] / cyq_sum * 100
+        price_list.reset_index(inplace=True)
+        price_list.rename(columns={"Close": "count"}, inplace=True)
+        # print(price_list)
+        df = pd.merge(df, price_list, left_on="Close", right_on="index", how="left")
+        df.set_index('Date', inplace=True, drop=False)
+        df.index.names = ['DateTime']
+        df['Date'] = pd.to_datetime(df["Date"]).dt.strftime('%Y-%m-%d')
+        df.index = pd.to_datetime(df.index)
+        # print(df[data_df["count"] > 1].tail(10))
+
     if pattern_name in ["VCP", "VCP2"]:
         df = vcp.compute_vcp_features(df)
-        df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d"]]
+        if bin_volume:
+            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "cum_volume", "cum_volume_pect"]]
+        else:
+            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d"]]
     elif "CUP_HANDLE" == pattern_name:
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
     return df

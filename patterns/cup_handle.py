@@ -138,6 +138,7 @@ def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_
                         patterns[name].append((start_date, end_date))
                         db.insert_pattern(end_date, name, sid) # pattern_end_date is buying date
                         previous_start_date_list.append(start_date)
+        logger.info("analysed cup handle for : {}".format(sid))
         return patterns
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()

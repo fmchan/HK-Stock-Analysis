@@ -57,4 +57,5 @@ def find_patterns(df, sid, last_row_no=100):
             patterns[name].append(start_date)
             start_date = datetime.strptime(start_date, "%Y-%m-%d")
             db.insert_pattern(start_date, name, sid)
+    logger.info("analysed VCP for : {}".format(sid))
     return patterns

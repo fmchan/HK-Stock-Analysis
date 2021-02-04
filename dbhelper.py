@@ -62,8 +62,12 @@ class DBHelper:
         finally:
             session.close()
 
-    def query_stock(self, provider, market, sid, start=datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d'), end=datetime.strftime(datetime.now()+timedelta(1), '%Y-%m-%d'), letter_case=True):
+    def query_stock(self, provider, market, sid, start=None, end=None, letter_case=True):
         try:
+            if start is None:
+                start = datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d')
+            if end is None:
+                end = datetime.strftime(datetime.now()+timedelta(2), '%Y-%m-%d')
             cnx = sqlite3.connect(DB_PATH)
             query = f"""
                 SELECT * FROM stocks
@@ -72,6 +76,7 @@ class DBHelper:
                 AND market = '{market}'
                 AND date BETWEEN '{start}' AND '{end}'
             """
+            self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
             if letter_case:
                 df.rename(columns={'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
