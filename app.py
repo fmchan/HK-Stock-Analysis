@@ -32,6 +32,30 @@ def make_cache_key(*args, **kwargs):
 def index():
 	  return app.send_static_file("index.html")
 
+@app.route("/compareStockPatterns", methods=["GET", "POST"])
+def compareStockPatterns():
+    db = DBHelper()
+    trading_date = request.form.get("trading_date")
+    logger.info("compare patterns which dated on [%s]"%(trading_date))
+
+    SEPA_df = db.query_pattern(start_date=trading_date, name="SEPA")
+    SEPA2_df = db.query_pattern(start_date=trading_date, name="SEPA2")
+    SEPA3_df = db.query_pattern(start_date=trading_date, name="SEPA3")
+
+    frames = [SEPA_df["sid"], SEPA2_df["sid"], SEPA3_df["sid"]]
+    report = pd.concat(frames, keys=["sid", "sid", "sid"], ignore_index=True).drop_duplicates()
+    report_df = pd.DataFrame({"sid":report.values})
+    report_df.sort_values("sid", inplace=True)
+    report_df["SEPA"], report_df["SEPA2"], report_df["SEPA3"] = report_df["sid"].isin(SEPA_df["sid"]).astype(bool), report_df["sid"].isin(SEPA2_df["sid"]).astype(bool), report_df["sid"].isin(SEPA3_df["sid"]).astype(bool)
+    for col in report_df.columns:
+        report_df[col] = report_df[col].replace({True:"✓", False:""})
+    report_df.style.set_properties(**{"text-align": "center"})
+    report_df.reset_index(drop=True)
+    print(report_df)
+    # return report_df.to_html(index=False)
+    converted_output = report_df.to_html(index=False)
+    return render_template('compare.html', trading_date = trading_date, content = converted_output)
+
 @app.route("/getStockPatterns", methods=["GET", "POST"])
 @cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getStockPatterns():
@@ -52,6 +76,21 @@ def getStockPatterns():
         #     converted_output += "<td><a href='#%s.%s'>%s</a></td></tr><tr>" %(sid, pattern_name, sid)
         # converted_output += "</tr></table><br>"
         converted_output = "<div><nav class='sidediv'><ul>"
+        # converted_output += """<form action="/compareStockPatterns" method="post" target="_blank">
+        #     <table>
+        #         <tr>
+        #             <td>
+        #                 <input id="trading_date" name="trading_date" type="hidden" value=%s>
+        #             </td>
+        #         </tr>
+        #         <tr>
+        #             <td>
+        #                 <button type="submit" id="compareStockPatterns">Compare patterns</button>
+        #             </td>
+        #         </tr>
+        #     </table>
+        #     <br>
+        # </form>""" %(trading_date)
         for sid in sorted_list:
             converted_output += "<li><a href='#%s.%s'>%s</a></li>" %(sid, pattern_name, sid)
         converted_output += "</ul></nav>"
@@ -73,12 +112,14 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
     aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
 
     df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
+    logger.info("[%s] returns len(%s) "%(sid, len(df)))
     df = _compute_pattern_features(pattern_name, df, bin_volume)
     df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
 
     plot_df = df.copy()
     plot_df["date"] = plot_df["date"].astype(str)
     pattern_df = db.query_stock_pattern(sid, pattern_name) # to avoid too much patterns to be plot
+    logger.info("[%s] returns len(%s) "%(pattern_name, len(pattern_df)))
     # stock_pattern_df = db.query_stock_pattern(sid) # to display all kinds of patterns for single stock
     stock_pattern_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="right")
     stock_pattern_df["start_date"] = stock_pattern_df["start_date"].astype(str)
@@ -87,10 +128,11 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
     stock_pattern_df["date"] = pd.to_datetime(stock_pattern_df["date"])
     stock_pattern_df = stock_pattern_df[stock_pattern_df["date"] > past_6_month]
     # stock_pattern_df = stock_pattern_df.iloc[-120:] # show latest 6 months (20 days * 6)
+    logger.info("plotting start for [%s]"%(sid))
     fig, ax = plt.subplots(figsize=(10, 4))
-    if pattern_name in ["VCP", "VCP2"]:
+    if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
         stock_pattern_df = stock_pattern_df[(stock_pattern_df["sma_200"] > 0)]
-        stock_pattern_df.plot(x="date", y=["close", "sma_50", "sma_150", "sma_200", "52w_low", "52w_high"], ax=ax)
+        stock_pattern_df.plot(x="date", y=["close", "sma_50", "ema_50", "sma_150", "ema_150", "sma_200", "ema_200", "52w_low", "52w_high"], ax=ax)
     elif "CUP_HANDLE" == pattern_name:
         stock_pattern_df.plot(x="date", y=["close"], ax=ax)
 
@@ -105,12 +147,14 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
     ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
     ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
 
+    logger.info("saving plotting for [%s]"%(sid))
     img = io.BytesIO()
     plt.savefig(img, format="png", bbox_inches="tight")
     img.seek(0)
     pattern_obj = base64.b64encode(img.getvalue()).decode()
     plt.clf()
     plt.close("all")
+    logger.info("plotting done for [%s]"%(sid))
 
     data_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="inner")
     data_df = _post_process_features(data_df)
@@ -128,7 +172,12 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
 def _post_process_features(df):
     df["52w_low_pct_chg"] = df["52w_low_pct_chg"].round().astype(int).astype(str) + "%"
     df["52w_high_pct_chg"] = df["52w_high_pct_chg"].round().astype(int).astype(str) + "%"
-    df = df.round(3)
+    df["volume"] = (df['volume'].astype(float)/1000000).round(2).astype(str) + "M"
+    df["avg_volume_5d"] = (df['avg_volume_5d'].astype(float)/1000000).round(2).astype(str) + "M"
+    df["ema_volume_20d"] = (df['ema_volume_20d'].astype(float)/1000000).round(2).astype(str) + "M"
+    # df["avg_volume_5d"] = df["avg_volume_5d"].astype('int64')
+    # df["ema_volume_20d"] = df["ema_volume_20d"].astype('int64')
+    df = df.round(2)
     return df
 
 def _compute_pattern_features(pattern_name, df, bin_volume=False):
@@ -150,12 +199,12 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
         df.index = pd.to_datetime(df.index)
         # print(df[data_df["count"] > 1].tail(10))
 
-    if pattern_name in ["VCP", "VCP2"]:
+    if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
         df = vcp.compute_vcp_features(df)
         if bin_volume:
-            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "cum_volume", "cum_volume_pect"]]
+            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "ema_50", "ema_150", "ema_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "ema_volume_20d", "cum_volume", "cum_volume_pect"]]
         else:
-            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d"]]
+            df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "ema_50", "ema_150", "ema_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "ema_volume_20d"]]
     elif "CUP_HANDLE" == pattern_name:
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
     return df

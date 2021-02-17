@@ -89,6 +89,7 @@ class DBHelper:
                 df['date'] = pd.to_datetime(df["date"]).dt.strftime('%Y-%m-%d')
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
+            self.logger.info("result returned for %s".format(sid))
             return df
         except Exception as e:
             message = "Exception in query_stock: {}".format(e)
@@ -115,7 +116,9 @@ class DBHelper:
                     GROUP BY sid
                     HAVING AVG(volume) > {volume})
             """
+            self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
+            self.logger.info("query_stock_by_volume result returned")
             return df
         except Exception as e:
             message = "Exception in query_stock_by_volume: {}".format(e)
@@ -132,7 +135,9 @@ class DBHelper:
             if name is not None:
                 query += f" and name = '{name}'"
             query += " ORDER BY name desc, sid"
+            self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
+            self.logger.info("query_pattern result returned")
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df
@@ -151,7 +156,9 @@ class DBHelper:
             if name is not None:
                 query += f" and name = '{name}'"
             query += " ORDER BY name desc"
+            self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
+            self.logger.info("result returned for %s".format(sid))
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df

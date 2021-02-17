@@ -26,15 +26,21 @@
           <th>Pattern:</th>
           <td>
             <select id="pattern_name" name="pattern_name" required>
-              <option selected="selected" value="VCP">VCP</option>
-              <option value="VCP2">VCP2</option>
+              <option selected="selected" value="SEPA">SEPA</option>
+              <option value="SEPA2">SEPA2</option>
+              <option value="SEPA3">SEPA3</option>
               <option value="CUP_HANDLE">Cup & Handle</option>
             </select>
           </td>
         </tr>
         <tr>
           <td>
-            <button type="submit" id="getStockPatterns">Find patterns</button>
+            <button type="submit" formaction="/getStockPatterns" id="getStockPatterns">Find patterns</button>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <button type="submit" formaction="/compareStockPatterns" id="compareStockPatterns">Compare SEPA patterns</button>
           </td>
         </tr>
       </table>

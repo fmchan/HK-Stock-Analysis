@@ -8,5 +8,5 @@ class Patterns(Enum):
     TD_REVERSE_DIFFERENTIAL_EXIT = "td reverse differential exit"
     TD_ANTI_DIFFERENTIAL_ENTRY = "td anti differential entry"
     TD_ANTI_DIFFERENTIAL_EXIT = "td anti differential exit"
-    VCP = "vcp"
+    SEPA = "SEPA"
     FLAT_BASE = "flat base"

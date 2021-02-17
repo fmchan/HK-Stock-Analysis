@@ -67,7 +67,7 @@ if __name__ == "__main__":
             # td_differential_group.td_reverse_differential(sid, df)
             # td_differential_group.td_anti_differential(sid, df)
 
-            # VCP
+            # SEPA
             vcp_patterns = vcp.find_patterns(df, sid)
             pattern_utils.show_single_patterns(sid, vcp_patterns)
 
