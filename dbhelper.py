@@ -18,7 +18,6 @@ from datetime import datetime
 import sqlite3
 import csv
 import pandas as pd
-from datetime import timedelta
 
 class DBHelper:
     def __init__(self):
@@ -89,7 +88,7 @@ class DBHelper:
                 df['date'] = pd.to_datetime(df["date"]).dt.strftime('%Y-%m-%d')
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
-            self.logger.info("result returned for %s".format(sid))
+            self.logger.info("result returned for {}".format(sid))
             return df
         except Exception as e:
             message = "Exception in query_stock: {}".format(e)
@@ -142,7 +141,44 @@ class DBHelper:
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df
         except Exception as e:
-            message = "Exception in query_stock: {}".format(e)
+            message = "Exception in query_pattern: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def query_pattern_w_pct_chg(self, start_date, name):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            # select * from
+            # (SELECT start_date, end_date, name, sid FROM patterns WHERE start_date = "2021-02-10 00:00:00.000000" and name = "SEPA3") as p
+            # join (
+            # SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, curr.sid
+            # FROM stocks As curr
+            # JOIN stocks As prev
+            # ON curr.sid = prev.sid
+            # where prev.date = '2021-02-10 00:00:00'
+            # AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as c
+            # on p.sid = c.sid
+            # order by pct_diff desc
+            query = f"""
+                select * from
+                    (SELECT start_date, end_date, name, sid FROM patterns WHERE date(start_date) = '{start_date}' and name = '{name}') as p
+                join (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, curr.sid
+                    FROM stocks As curr
+                    JOIN stocks As prev
+                    ON curr.sid = prev.sid
+                    where date(prev.date) = '{start_date}'
+                    AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as c
+                on p.sid = c.sid
+                order by pct_diff desc
+            """
+            self.logger.info(query)
+            df = pd.read_sql_query(query, cnx)
+            self.logger.info("query_pattern_w_pct_chg result returned")
+            df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
+            # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
+            return df
+        except Exception as e:
+            message = "Exception in query_pattern_w_pct_chg: {}".format(e)
             self.logger.exception(message)
             return message
 
@@ -158,12 +194,12 @@ class DBHelper:
             query += " ORDER BY name desc"
             self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
-            self.logger.info("result returned for %s".format(sid))
+            self.logger.info("result returned for {}".format(sid))
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df
         except Exception as e:
-            message = "Exception in query_stock: {}".format(e)
+            message = "Exception in query_stock_pattern: {}".format(e)
             self.logger.exception(message)
             return message
 

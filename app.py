@@ -18,6 +18,7 @@ import json as json_parser
 from collections import OrderedDict
 from flask_caching import Cache
 from dateutil.relativedelta import *
+from datetime import date, timedelta
 
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
@@ -50,9 +51,18 @@ def compareStockPatterns():
     for col in report_df.columns:
         report_df[col] = report_df[col].replace({True:"✓", False:""})
     report_df.style.set_properties(**{"text-align": "center"})
-    report_df.reset_index(drop=True)
-    print(report_df)
-    # return report_df.to_html(index=False)
+    report_df = report_df.reset_index(drop=True)
+    # data_df = pd.DataFrame()
+    # for index, stock_df in report_df.iterrows():
+    #     sid = stock_df["sid"]
+    #     df = _append_features_data(db, sid, trading_date)
+    #     df.drop("date", axis=1, inplace=True)
+    #     data_df = data_df.append(df)
+    # data_df = data_df.reset_index(drop=True)
+    # report_df = pd.concat([report_df, data_df], keys=["sid", "sid"], ignore_index=False, axis=1).T.drop_duplicates().T
+    # report_df = report_df.reset_index(drop=True)
+    # report_df.columns = report_df.columns.droplevel(0)
+    # print(report_df)
     converted_output = report_df.to_html(index=False)
     return render_template('compare.html', trading_date = trading_date, content = converted_output)
 
@@ -64,43 +74,25 @@ def getStockPatterns():
     pattern_name = request.form.get("pattern_name")
     logger.info("start finding [%s] patterns which dated on [%s]"%(pattern_name, trading_date))
 
-    patterns_df = db.query_pattern(start_date=trading_date, name=pattern_name)
+    patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name)
     logger.info("total stocks: [%s] "%(len(patterns_df)))
     if len(patterns_df) > 0:
-        sid_set = set(patterns_df["sid"])
-        sorted_list = sorted(sid_set)
-
-        # converted_output = "<table border='1'; width='100%' style='border-collapse: collapse'><tr>"
-        # converted_output += "<a id='top'></a></tr><tr>"
-        # for sid in sorted_list:
-        #     converted_output += "<td><a href='#%s.%s'>%s</a></td></tr><tr>" %(sid, pattern_name, sid)
-        # converted_output += "</tr></table><br>"
+        print(patterns_df)
         converted_output = "<div><nav class='sidediv'><ul>"
-        # converted_output += """<form action="/compareStockPatterns" method="post" target="_blank">
-        #     <table>
-        #         <tr>
-        #             <td>
-        #                 <input id="trading_date" name="trading_date" type="hidden" value=%s>
-        #             </td>
-        #         </tr>
-        #         <tr>
-        #             <td>
-        #                 <button type="submit" id="compareStockPatterns">Compare patterns</button>
-        #             </td>
-        #         </tr>
-        #     </table>
-        #     <br>
-        # </form>""" %(trading_date)
-        for sid in sorted_list:
-            converted_output += "<li><a href='#%s.%s'>%s</a></li>" %(sid, pattern_name, sid)
+        for index, row in patterns_df.iterrows():
+            # logger.info(row["sid"])
+            sid = row["sid"].values[0]
+            pct_chg = round(row["pct_diff"], 2)
+            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)</li>" %(sid, pattern_name, sid, pct_chg)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
-        for sid in sorted_list:
+        for index, row in patterns_df.iterrows():
+            sid = row["sid"].values[0]
             converted_output += _get_stock_output(db, trading_date, sid, pattern_name)
         converted_output += "</div></div><br>"
 
-        # return converted_output
+        logger.info("end of getStockPatterns()")
         return render_template('result.html', trading_date = trading_date, content = converted_output)
     else:
         return "no pattern found"
@@ -208,6 +200,15 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
     elif "CUP_HANDLE" == pattern_name:
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
     return df
+
+def _append_features_data(db, sid, trading_date):
+    end_date = (datetime.strptime(trading_date, "%Y-%m-%d") + timedelta(1)).strftime("%Y-%m-%d")
+    df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, end=end_date, letter_case=True)
+    df = _compute_pattern_features("SEPA", df)
+    df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
+    df = _post_process_features(df)
+    # print(df.tail(1))
+    return df.tail(1)
 
 if __name__ == "__main__":
 	port = int(os.environ.get("PORT", PORT))

@@ -3,14 +3,14 @@
   left: 0;
   position: fixed;
   top: 0;
-  width: 120px;
+  width: 210px;
   overflow: scroll;
 }
 .content {
   height: 100%;
   right: 0;
   top: 0;
-  padding-left: 50px;
+  padding-left: 110px;
   display: inline-block;
 }
 .row {

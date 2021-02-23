@@ -5,7 +5,6 @@ from collections import defaultdict
 from patterns.all_patterns import Patterns
 from scipy.signal import argrelextrema
 from dbhelper import DBHelper
-from datetime import datetime
 import logging
 
 def compute_trendline_features(df, order):
