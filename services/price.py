@@ -71,7 +71,7 @@ def get_hist_stock_price(sid, start_date='2001-07-15', provider='YAHOO', market=
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-        logger.error(exc_type, fname, exc_tb.tb_lineno)
+        logger.exception(exc_type, fname, exc_tb.tb_lineno)
         logger.error('failed: {}'.format(sid))
         return pd.DataFrame()
     return df
