@@ -225,7 +225,12 @@ def getIncomeSummary():
     summary_list = []
     min_eps_growth = request.form.get("min_eps_growth")
     min_net_profit_growth = request.form.get("min_net_profit_growth")
-    logger.info("start finding stocks with min eps growth [%s] and min net profit growth [%s]"%(min_eps_growth, min_net_profit_growth))
+    is_increase = request.form.get("is_increase")
+    if is_increase and is_increase == "True":
+        is_increase = True
+    else:
+        is_increase = False
+    logger.info("start finding stocks with min eps growth [%s] and min net profit growth [%s], [%s]"%(min_eps_growth, min_net_profit_growth, is_increase))
     cnx = sqlite3.connect(DB_PATH)
     cnx.execute("PRAGMA journal_mode=WAL")
 
@@ -265,7 +270,8 @@ def getIncomeSummary():
                 and annual_income_df.iloc[-1]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
                 and annual_income_df.iloc[-2]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
                 and annual_income_df.iloc[-3]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
-                and annual_income_df.iloc[-1]["net_profit_growth"] > annual_income_df.iloc[-2]["net_profit_growth"] > annual_income_df.iloc[-3]["net_profit_growth"]:
+                and (is_increase and annual_income_df.iloc[-1]["net_profit_growth"] > annual_income_df.iloc[-2]["net_profit_growth"] > annual_income_df.iloc[-3]["net_profit_growth"]
+                    or not is_increase):
                     logger.info("found: " + sid)
                     summary_list.append(sid)
     logger.info(summary_list)
