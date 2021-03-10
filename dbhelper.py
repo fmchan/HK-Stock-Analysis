@@ -6,6 +6,7 @@ from sqlalchemy.sql import func
 from sqlalchemy import exc
 from models.stock import Stock
 from models.pattern import Pattern
+from models.income import Income
 from datetime import date, timedelta
 import datetime as dt
 from configs.settings import DB_PATH
@@ -145,7 +146,7 @@ class DBHelper:
             self.logger.exception(message)
             return message
 
-    def query_pattern_w_pct_chg(self, start_date, name):
+    def query_pattern_w_pct_chg(self, start_date, name, min_volume, max_volume):
         try:
             cnx = sqlite3.connect(DB_PATH)
             # select * from
@@ -166,7 +167,7 @@ class DBHelper:
                     FROM stocks As curr
                     JOIN stocks As prev
                     ON curr.sid = prev.sid
-                    where date(prev.date) = '{start_date}'
+                    where date(prev.date) = '{start_date}' AND prev.volume between '{min_volume}' AND '{max_volume}' 
                     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as c
                 on p.sid = c.sid
                 order by pct_diff desc
@@ -200,6 +201,40 @@ class DBHelper:
             return df
         except Exception as e:
             message = "Exception in query_stock_pattern: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def insert_income(self, income):
+        try:
+            session = Session()
+            result = session.query(Income).filter_by(period = income.period, sid = income.sid).first()
+            if result is None:
+                self.logger.info("inserting {} income for sid {}".format(income.period, income.sid))
+                session.add(income)
+            else:
+                self.logger.info("db found {} income for sid {}".format(income.period, income.sid))
+            session.commit()
+            return "done"
+        except Exception as e:
+            message = "Exception in insert_income: %s" % e
+            self.logger.exception(message + str(e))
+            return message
+        finally:
+            session.close()
+
+    def query_income(self, sid):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            query = f"""
+                SELECT * FROM incomes
+                WHERE sid = '{sid}'
+            """
+            self.logger.info(query)
+            df = pd.read_sql_query(query, cnx)
+            self.logger.info("result returned for {}".format(sid))
+            return df
+        except Exception as e:
+            message = "Exception in query_income: {}".format(e)
             self.logger.exception(message)
             return message
 

@@ -2,7 +2,7 @@
 import os
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
-from configs.settings import HOST, PORT, DB_QUERY_START_DATE
+from configs.settings import HOST, PORT, DB_QUERY_START_DATE, DATA_PATH
 import datetime as dt
 from configs.logger import Logger
 import pandas as pd
@@ -19,6 +19,9 @@ from collections import OrderedDict
 from flask_caching import Cache
 from dateutil.relativedelta import *
 from datetime import date, timedelta
+from datautils import pattern_utils
+from configs.settings import DB_PATH
+import sqlite3
 
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
@@ -27,11 +30,11 @@ cache = Cache(app, config={"CACHE_TYPE": "simple"})
 logger = Logger("MainLogger").setup_system_logger()
 
 def make_cache_key(*args, **kwargs):
-    return request.form.get("trading_date"), request.form.get("pattern_name")
+    return request.form.get("trading_date"), request.form.get("pattern_name"), request.form.get("min_volume"), request.form.get("max_volume")
 
 @app.route("/")
 def index():
-	  return app.send_static_file("index.html")
+    return app.send_static_file("index.html")
 
 @app.route("/compareStockPatterns", methods=["GET", "POST"])
 def compareStockPatterns():
@@ -72,9 +75,11 @@ def getStockPatterns():
     db = DBHelper()
     trading_date = request.form.get("trading_date")
     pattern_name = request.form.get("pattern_name")
-    logger.info("start finding [%s] patterns which dated on [%s]"%(pattern_name, trading_date))
+    min_volume = float(request.form.get("min_volume")) * 1_000_000
+    max_volume = float(request.form.get("max_volume")) * 1_000_000
+    logger.info("start finding [%s] patterns in volume range [%s] to [%s] which dated on [%s]"%(pattern_name, min_volume, max_volume, trading_date))
 
-    patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name)
+    patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name, min_volume=min_volume, max_volume=max_volume)
     logger.info("total stocks: [%s] "%(len(patterns_df)))
     if len(patterns_df) > 0:
         print(patterns_df)
@@ -210,9 +215,74 @@ def _append_features_data(db, sid, trading_date):
     # print(df.tail(1))
     return df.tail(1)
 
+@app.route("/stockScreener")
+def stockScreener():
+    return app.send_static_file("screener.html")
+
+@app.route("/getIncomeSummary", methods=["GET", "POST"])
+def getIncomeSummary():
+    db = DBHelper()
+    summary_list = []
+    min_eps_growth = request.form.get("min_eps_growth")
+    min_net_profit_growth = request.form.get("min_net_profit_growth")
+    logger.info("start finding stocks with min eps growth [%s] and min net profit growth [%s]"%(min_eps_growth, min_net_profit_growth))
+    cnx = sqlite3.connect(DB_PATH)
+    cnx.execute("PRAGMA journal_mode=WAL")
+
+    MIN_EPS_GROWTH = min_eps_growth
+    MIN_NET_PROFIT_GROWTH = min_net_profit_growth
+
+    present_ticker_ids = pd.read_sql("SELECT DISTINCT sid FROM stocks WHERE provider = '{}' and market = '{}'".format("YAHOO", "HK"), cnx)
+    logger.info(present_ticker_ids)
+    incomes_df = pd.read_csv(DATA_PATH + 'income_dfs.csv', index_col=False)
+    for sid in present_ticker_ids['sid']:
+        # print("processing :", sid)
+        # sql = "SELECT basic_eps, eps_growth, net_profit, net_profit_growth, frequency, year FROM incomes WHERE sid='{}'".format(sid)
+        # income_df = pd.read_sql(sql, cnx)
+        income_df = incomes_df[incomes_df["sid"] == sid]
+        if len(income_df) > 0:
+            # print(income_df)
+            # print("*"*20)
+            annual_income_df = income_df[income_df["frequency"]=="annual"].sort_values(by="year", ascending=True)
+            quarterly_income_df = income_df[income_df["frequency"]=="quarterly"].sort_values(by="year", ascending=True)
+            if len(annual_income_df) > 0 and len(quarterly_income_df) > 0:
+                annual_income_df["net_profit_growth"] = np.where(annual_income_df["net_profit_growth"] == '-', pattern_utils.compute_growth(annual_income_df, "net_profit"), annual_income_df["net_profit_growth"])
+                annual_income_df["net_profit_growth"] = annual_income_df["net_profit_growth"].apply(pattern_utils.value_to_float)
+                annual_income_df["net_profit_growth"] = annual_income_df["net_profit_growth"].astype(float)
+                annual_income_df["eps_growth"] = np.where(annual_income_df["eps_growth"] == '-', pattern_utils.compute_growth(annual_income_df, "basic_eps"), annual_income_df["eps_growth"])
+                annual_income_df["eps_growth"] = annual_income_df["eps_growth"].apply(pattern_utils.value_to_float)
+                annual_income_df["eps_growth"] = annual_income_df["eps_growth"].astype(float)
+                # print(annual_income_df)
+                # print("*"*20)
+                quarterly_income_df["net_profit_growth"] = np.where(quarterly_income_df["net_profit_growth"] == '-', pattern_utils.compute_growth(quarterly_income_df, "net_profit"), quarterly_income_df["net_profit_growth"])
+                quarterly_income_df["net_profit_growth"] = quarterly_income_df["net_profit_growth"].apply(pattern_utils.value_to_float)
+                quarterly_income_df["net_profit_growth"] = quarterly_income_df["net_profit_growth"].astype(float)
+                quarterly_income_df["eps_growth"] = np.where(quarterly_income_df["eps_growth"] == '-', pattern_utils.compute_growth(quarterly_income_df, "basic_eps"), quarterly_income_df["eps_growth"])
+                quarterly_income_df["eps_growth"] = quarterly_income_df["eps_growth"].apply(pattern_utils.value_to_float)
+                quarterly_income_df["eps_growth"] = quarterly_income_df["eps_growth"].astype(float)
+                # print(quarterly_income_df)
+                if quarterly_income_df.iloc[-1]["eps_growth"] >= float(MIN_EPS_GROWTH) \
+                and annual_income_df.iloc[-1]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
+                and annual_income_df.iloc[-2]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
+                and annual_income_df.iloc[-3]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
+                and annual_income_df.iloc[-1]["net_profit_growth"] > annual_income_df.iloc[-2]["net_profit_growth"] > annual_income_df.iloc[-3]["net_profit_growth"]:
+                    logger.info("found: " + sid)
+                    summary_list.append(sid)
+    logger.info(summary_list)
+    if len(summary_list) > 0:
+        converted_output = ""
+        for sid in summary_list:
+            aastock_code = sid.split(".")[0].zfill(5)
+            aastock_earnings_summary_url = "http://www.aastocks.com/en/stocks/analysis/company-fundamental/earnings-summary?symbol={}".format(aastock_code)
+            converted_output += "<a target='_blank' href='%s'>%s</a><br>" %(aastock_earnings_summary_url, sid)
+        logger.info(converted_output)
+        return converted_output
+    else:
+        return "no stocks found"
+
 if __name__ == "__main__":
-	port = int(os.environ.get("PORT", PORT))
-	app.run(host = HOST, port = port, debug = False) # flask is in threaded mode by default
+    port = int(os.environ.get("PORT", PORT))
+    app.run(host = HOST, port = port, debug = False) # flask is in threaded mode by default
 
 	# from tornado.wsgi import WSGIContainer
 	# from tornado.httpserver import HTTPServer

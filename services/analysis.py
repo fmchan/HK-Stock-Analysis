@@ -20,7 +20,7 @@ def compute_patterns():
             sid = stock_df["sid"]
             logger.info("processing analysis: {}".format(sid))
             df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
-            if isinstance(df, pd.DataFrame) and len(df) > 260 and df.iloc[-1]["Close"] > 1: # 260 = 52*5
+            if isinstance(df, pd.DataFrame) and len(df) > 260: # 260 = 52*5
                 # df = compute_features(df)
 
                 # # Cup & Handle

@@ -3,9 +3,12 @@
 <meta charset="UTF-8">
 <title>Stock Patterns Founder</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.css">
-<script src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
-<script src="https://code.jquery.com/mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="/resources/demos/style.css">
+<!-- <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}"/> -->
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
 <style> body {font-family: 微软雅黑;} </style>
 </head>
 <body>
@@ -20,6 +23,14 @@
           <th>Date:</th>
           <td>
             <input id="trading_date" name="trading_date" type="date" required>
+          </td>
+        </tr>
+        <tr>
+          <th>Volume Range:</th>
+          <td>
+            <input class="sliderinput" id="min_volume" name="min_volume" step="0.1" type="number" placeholder="0.0" style="border: 1px solid #ddd; font-weight:bold; text-align:center; width:75px; padding-bottom: 0px; padding-top: 0px;">M - 
+            <input class="sliderinput" id="max_volume" name="max_volume" step="0.1" type="number" placeholder="0.0" style="border: 1px solid #ddd; font-weight:bold; text-align:center; width:75px; padding-bottom: 0px; padding-top: 0px;">M
+            <div id="slider_range" name="slider_range"></div>
           </td>
         </tr>
         <tr>
@@ -59,6 +70,34 @@ $(function(){
   var year = date.getFullYear();
   var today = year + "-" + month + "-" + day;
   $trading_date.val(today);
+
+  $("#slider_range").slider({
+      range: true,
+      step: 1,
+      min: 0,
+      max: 10000,
+      values: [ 1000, 10000 ],
+      slide: function(event, ui) {
+        $("#min_volume").val(ui.values[0]);
+        $("#max_volume").val(ui.values[1]);
+      }
+  });
+     
+  $("#min_volume").val($("#slider_range").slider("values", 0));
+  $("#max_volume").val($("#slider_range").slider("values", 1));
+  console.log(
+      $("#min_volume").val() );
+  $('#min_volume').on('input', function() {
+    if ($(this).val() < $("#max_volume").val()) {
+      $("#slider_range").slider('values', 0, $(this).val());
+    }
+  });
+
+  $('#max_volume').on('input', function() {
+    if ($(this).val() > $("#min_volume").val()) {
+      $("#slider_range").slider('values', 1, $(this).val());
+    }
+  });
 });
 </script>
 </html>
