@@ -290,27 +290,27 @@ def _get_summary_output(sid, data_df):
     quarterly_income_df = quarterly_income_df.set_index(["year", "month", "frequency"]).unstack("frequency")
 
     # option 1 row not share the same year
-    annual_income_df.reset_index(drop=True, inplace=True)
-    quarterly_income_df.reset_index(drop=True, inplace=True)
-    result_df = pd.concat([annual_income_df, quarterly_income_df], axis=1, join="outer")
-    result_df.columns = result_df.columns.swaplevel(0,1)
-    result_df.reset_index(drop=True, inplace=True)
-    result_df.fillna("", inplace=True)
-    result_df.columns.names = (None, None)
-
-    # # option 2 row share the same year
-    # annual_income_df.insert(loc=0, column="year", value=annual_income_df.index.get_level_values("year"))
-    # quarterly_income_df.insert(loc=0, column="year", value=quarterly_income_df.index.get_level_values("year"))
-    # result_df = annual_income_df.merge(quarterly_income_df, how='outer')
-    # # annual_income_df = annual_income_df.set_index("year") # on .join()
-    # # quarterly_income_df = quarterly_income_df.set_index("year") # on .join()
-    # # result_df = annual_income_df.join(quarterly_income_df, how='outer')
+    # annual_income_df.reset_index(drop=True, inplace=True)
+    # quarterly_income_df.reset_index(drop=True, inplace=True)
+    # result_df = pd.concat([annual_income_df, quarterly_income_df], axis=1, join="outer")
     # result_df.columns = result_df.columns.swaplevel(0,1)
     # result_df.reset_index(drop=True, inplace=True)
     # result_df.fillna("", inplace=True)
     # result_df.columns.names = (None, None)
-    # result_df.loc[result_df["quarterly"].duplicated(), "quarterly"] = ""
-    # result_df = result_df.drop("year", axis=1, level=1)
+
+    # # option 2 row share the same year
+    annual_income_df.insert(loc=0, column="year", value=annual_income_df.index.get_level_values("year"))
+    quarterly_income_df.insert(loc=0, column="year", value=quarterly_income_df.index.get_level_values("year"))
+    result_df = annual_income_df.merge(quarterly_income_df, how='outer')
+    # annual_income_df = annual_income_df.set_index("year") # on .join()
+    # quarterly_income_df = quarterly_income_df.set_index("year") # on .join()
+    # result_df = annual_income_df.join(quarterly_income_df, how='outer')
+    result_df.columns = result_df.columns.swaplevel(0,1)
+    result_df.reset_index(drop=True, inplace=True)
+    result_df.fillna("", inplace=True)
+    result_df.columns.names = (None, None)
+    result_df.loc[result_df["quarterly"].duplicated(), "quarterly"] = ""
+    result_df = result_df.drop("year", axis=1, level=1)
 
     # print(result_df)
     data_df.dropna(subset=["eps_growth", "net_profit_growth"], how='all', inplace=True)
