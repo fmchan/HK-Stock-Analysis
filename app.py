@@ -67,6 +67,7 @@ def compareStockPatterns():
     # report_df.columns = report_df.columns.droplevel(0)
     # print(report_df)
     converted_output = report_df.to_html(index=False)
+    logger.info("end of compareStockPatterns()")
     return render_template('compare.html', trading_date = trading_date, content = converted_output)
 
 @app.route("/getStockPatterns", methods=["GET", "POST"])
@@ -222,7 +223,6 @@ def stockScreener():
 @app.route("/getIncomeSummary", methods=["GET", "POST"])
 def getIncomeSummary():
     db = DBHelper()
-    summary_list = []
     min_eps_growth = request.form.get("min_eps_growth")
     min_net_profit_growth = request.form.get("min_net_profit_growth")
     is_increase = request.form.get("is_increase")
@@ -230,61 +230,117 @@ def getIncomeSummary():
         is_increase = True
     else:
         is_increase = False
+    is_found = False
     logger.info("start finding stocks with min eps growth [%s] and min net profit growth [%s], [%s]"%(min_eps_growth, min_net_profit_growth, is_increase))
     cnx = sqlite3.connect(DB_PATH)
     cnx.execute("PRAGMA journal_mode=WAL")
-
     MIN_EPS_GROWTH = min_eps_growth
     MIN_NET_PROFIT_GROWTH = min_net_profit_growth
 
     present_ticker_ids = pd.read_sql("SELECT DISTINCT sid FROM stocks WHERE provider = '{}' and market = '{}'".format("YAHOO", "HK"), cnx)
     logger.info(present_ticker_ids)
-    incomes_df = pd.read_csv(DATA_PATH + 'income_dfs.csv', index_col=False)
+    incomes_df = pd.read_csv(DATA_PATH + 'incomes_df.csv', index_col=False)
+    incomes_df = incomes_df.sort_values(by="year", ascending=True)
+    sub_converted_output = ""
+    converted_output = "<div><nav class='sidediv'><ul>"
     for sid in present_ticker_ids['sid']:
         # print("processing :", sid)
         # sql = "SELECT basic_eps, eps_growth, net_profit, net_profit_growth, frequency, year FROM incomes WHERE sid='{}'".format(sid)
         # income_df = pd.read_sql(sql, cnx)
         income_df = incomes_df[incomes_df["sid"] == sid]
-        if len(income_df) > 0:
-            # print(income_df)
-            # print("*"*20)
-            annual_income_df = income_df[income_df["frequency"]=="annual"].sort_values(by="year", ascending=True)
-            quarterly_income_df = income_df[income_df["frequency"]=="quarterly"].sort_values(by="year", ascending=True)
-            if len(annual_income_df) > 0 and len(quarterly_income_df) > 0:
-                annual_income_df["net_profit_growth"] = np.where(annual_income_df["net_profit_growth"] == '-', pattern_utils.compute_growth(annual_income_df, "net_profit"), annual_income_df["net_profit_growth"])
-                annual_income_df["net_profit_growth"] = annual_income_df["net_profit_growth"].apply(pattern_utils.value_to_float)
-                annual_income_df["net_profit_growth"] = annual_income_df["net_profit_growth"].astype(float)
-                annual_income_df["eps_growth"] = np.where(annual_income_df["eps_growth"] == '-', pattern_utils.compute_growth(annual_income_df, "basic_eps"), annual_income_df["eps_growth"])
-                annual_income_df["eps_growth"] = annual_income_df["eps_growth"].apply(pattern_utils.value_to_float)
-                annual_income_df["eps_growth"] = annual_income_df["eps_growth"].astype(float)
-                # print(annual_income_df)
-                # print("*"*20)
-                quarterly_income_df["net_profit_growth"] = np.where(quarterly_income_df["net_profit_growth"] == '-', pattern_utils.compute_growth(quarterly_income_df, "net_profit"), quarterly_income_df["net_profit_growth"])
-                quarterly_income_df["net_profit_growth"] = quarterly_income_df["net_profit_growth"].apply(pattern_utils.value_to_float)
-                quarterly_income_df["net_profit_growth"] = quarterly_income_df["net_profit_growth"].astype(float)
-                quarterly_income_df["eps_growth"] = np.where(quarterly_income_df["eps_growth"] == '-', pattern_utils.compute_growth(quarterly_income_df, "basic_eps"), quarterly_income_df["eps_growth"])
-                quarterly_income_df["eps_growth"] = quarterly_income_df["eps_growth"].apply(pattern_utils.value_to_float)
-                quarterly_income_df["eps_growth"] = quarterly_income_df["eps_growth"].astype(float)
-                # print(quarterly_income_df)
-                if quarterly_income_df.iloc[-1]["eps_growth"] >= float(MIN_EPS_GROWTH) \
-                and annual_income_df.iloc[-1]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
-                and annual_income_df.iloc[-2]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
-                and annual_income_df.iloc[-3]["net_profit_growth"] >= float(MIN_NET_PROFIT_GROWTH) \
-                and (is_increase and annual_income_df.iloc[-1]["net_profit_growth"] > annual_income_df.iloc[-2]["net_profit_growth"] > annual_income_df.iloc[-3]["net_profit_growth"]
-                    or not is_increase):
-                    logger.info("found: " + sid)
-                    summary_list.append(sid)
-    logger.info(summary_list)
-    if len(summary_list) > 0:
-        converted_output = ""
-        for sid in summary_list:
-            aastock_code = sid.split(".")[0].zfill(5)
-            aastock_earnings_summary_url = "http://www.aastocks.com/en/stocks/analysis/company-fundamental/earnings-summary?symbol={}".format(aastock_code)
-            converted_output += "<a target='_blank' href='%s'>%s</a><br>" %(aastock_earnings_summary_url, sid)
-        logger.info(converted_output)
-        return converted_output
+        if len(income_df) > 0 and len(income_df[income_df["frequency"]=="annual"]) > 0 and len(income_df[income_df["frequency"]=="quarterly"]) > 0:
+            if income_df[income_df["frequency"]=="quarterly"]["eps_growth"].iloc[-1] >= float(MIN_EPS_GROWTH) \
+            and income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-1] >= float(MIN_NET_PROFIT_GROWTH) \
+            and income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-2] >= float(MIN_NET_PROFIT_GROWTH) \
+            and income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-3] >= float(MIN_NET_PROFIT_GROWTH) \
+            and (is_increase and income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-1] > income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-2] > income_df[income_df["frequency"]=="annual"]["net_profit_growth"].iloc[-3]
+                or not is_increase):
+                logger.info("found: " + sid)
+                converted_output += "<a href='#%s'>%s</a><br>" %(sid, sid)
+                is_found = True
+                sub_converted_output += _get_summary_output(sid, income_df)
+    converted_output += "</ul></nav>"
+    converted_output += "<div class='content'>"
+    converted_output += sub_converted_output
+    converted_output += "</div></div><br>"
+    logger.info("end of getIncomeSummary()")
+    if is_found > 0:
+        return render_template('result.html', content = converted_output)
     else:
         return "no stocks found"
+
+def _get_summary_output(sid, data_df):
+    logger.info("getting output for %s "%(sid))
+    aastock_code = sid.split(".")[0].zfill(5)
+    aastock_earnings_summary_url = "http://www.aastocks.com/en/stocks/analysis/company-fundamental/earnings-summary?symbol={}".format(aastock_code)
+    aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
+
+    # incomes_df = pd.read_csv(DATA_PATH + 'incomes_df.csv', index_col=False)
+    # incomes_df = incomes_df.sort_values(by="year", ascending=True)
+    # income_df = incomes_df[incomes_df["sid"] == sid]
+    data_df = data_df[["period", "year", "month", "frequency", "basic_eps", "eps_growth", "net_profit", "net_profit_growth"]]
+    # data_df["net_profit_million"] = (data_df["net_profit"].astype(float)/1000000).round(2)
+    # data_df["net_profit"] = data_df["net_profit_million"].astype(str) + "M"
+    data_df["net_profit"] = (data_df["net_profit"].astype(float)/1000000).round(2).astype(str) + "M"
+    data_df[["eps_growth", "net_profit_growth"]] = data_df[["eps_growth", "net_profit_growth"]].round(2)
+
+    annual_income_df = data_df[data_df["frequency"]=="annual"].sort_values(by=["year", "month"], ascending=[True, True])
+    quarterly_income_df = data_df[data_df["frequency"]=="quarterly"].sort_values(by=["year", "month"], ascending=[True, True])
+    annual_income_df = annual_income_df.set_index(["year", "month", "frequency"]).unstack("frequency")
+    quarterly_income_df = quarterly_income_df.set_index(["year", "month", "frequency"]).unstack("frequency")
+
+    # option 1 row not share the same year
+    annual_income_df.reset_index(drop=True, inplace=True)
+    quarterly_income_df.reset_index(drop=True, inplace=True)
+    result_df = pd.concat([annual_income_df, quarterly_income_df], axis=1, join="outer")
+    result_df.columns = result_df.columns.swaplevel(0,1)
+    result_df.reset_index(drop=True, inplace=True)
+    result_df.fillna("", inplace=True)
+    result_df.columns.names = (None, None)
+
+    # # option 2 row share the same year
+    # annual_income_df.insert(loc=0, column="year", value=annual_income_df.index.get_level_values("year"))
+    # quarterly_income_df.insert(loc=0, column="year", value=quarterly_income_df.index.get_level_values("year"))
+    # result_df = annual_income_df.merge(quarterly_income_df, how='outer')
+    # # annual_income_df = annual_income_df.set_index("year") # on .join()
+    # # quarterly_income_df = quarterly_income_df.set_index("year") # on .join()
+    # # result_df = annual_income_df.join(quarterly_income_df, how='outer')
+    # result_df.columns = result_df.columns.swaplevel(0,1)
+    # result_df.reset_index(drop=True, inplace=True)
+    # result_df.fillna("", inplace=True)
+    # result_df.columns.names = (None, None)
+    # result_df.loc[result_df["quarterly"].duplicated(), "quarterly"] = ""
+    # result_df = result_df.drop("year", axis=1, level=1)
+
+    # print(result_df)
+    data_df.dropna(subset=["eps_growth", "net_profit_growth"], how='all', inplace=True)
+    data_df["freq"] = np.where(data_df["frequency"]=="annual", "", "Q")
+    data_df["new_period"] = data_df["period"] + data_df["freq"]
+    data_df = data_df.set_index(["new_period"])
+    # data_df = data_df.set_index(["period"])
+    data_df = data_df.sort_values(by=["frequency", "year", "month"], ascending=[True, True, True])
+    # print(data_df)
+    # fig, ax = plt.subplots()
+    data_df[["eps_growth", "net_profit_growth"]].plot(kind='bar', rot=30)
+    # fig.autofmt_xdate()
+    # ax.set_xticklabels(ax.get_xticklabels(), fontsize=7)
+    # plt.show()
+    logger.info("saving plotting for [%s]"%(sid))
+    img = io.BytesIO()
+    plt.savefig(img, format="png", bbox_inches="tight")
+    img.seek(0)
+    pattern_obj = base64.b64encode(img.getvalue()).decode()
+    plt.clf()
+    plt.close("all")
+    logger.info("plotting done for [%s]"%(sid))
+
+    sub_converted_output = "<section id='%s'><div class='row'><a target='_blank' href='%s'>%s</a></div><br>" %(sid, aastock_earnings_summary_url, sid)
+    sub_converted_output += "<div class='row'>%s</div><br>" %(result_df.to_html(index=False))
+    sub_converted_output += "<div class='row'><img src='data:image/png;base64,%s'></div><br>" %(pattern_obj)
+    sub_converted_output += "<div class='row'><img src='%s'></div><br>" %(aastock_chart_image_url)
+    sub_converted_output += "<div style='height: 50px !important;'></div></section><br>"
+    logger.info("total patterns for [%s]: [%s] "%(sid, len(result_df)))
+    return sub_converted_output
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", PORT))

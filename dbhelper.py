@@ -242,6 +242,20 @@ class DBHelper:
         add_column = DDL('ALTER TABLE stocks ADD COLUMN newcol VARCHAR(300)')
         engine.execute(add_column)
 
+    def delete_expired_stocks(self, sid):
+        try:
+            self.logger.info("deleting all stocks for sid {}".format(sid))
+            session = Session()
+            session.query(Stock).filter_by(sid = sid).delete()
+            session.commit()
+            return "done"
+        except Exception as e:
+            message = "Exception in delete_expired_stocks: %s" % e
+            self.logger.exception(message)
+            return message
+        finally:
+            session.close()
+
 if __name__ == "__main__":
     # print(sqlite3.sqlite_version)
     # print(sqlite3.version)
@@ -249,9 +263,12 @@ if __name__ == "__main__":
     db = DBHelper()
     cnx = sqlite3.connect(DB_PATH)
     provider = 'YAHOO'
-    sid = '3618.HK'
     market = 'HK'
-    # df = db.query_stock(provider, market, sid, start='2019-04-01')
+    # sid = '1155.HK'
+    # sid = '1698.HK'
+    sid = '8171.HK'
+    # sid = '8256.HK'
+    # db.delete_expired_stocks(sid)
+    df = db.query_stock(provider, market, sid, start='2019-04-01')
     # df = db.query_pattern(start_date='2021-01-15')
-    df = db.query_stock_pattern(sid)
     print(df)
