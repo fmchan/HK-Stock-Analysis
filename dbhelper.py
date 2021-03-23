@@ -7,6 +7,7 @@ from sqlalchemy import exc
 from models.stock import Stock
 from models.pattern import Pattern
 from models.income import Income
+from models.watchlist import Watchlist
 from datetime import date, timedelta
 import datetime as dt
 from configs.settings import DB_PATH
@@ -235,6 +236,41 @@ class DBHelper:
             return df
         except Exception as e:
             message = "Exception in query_income: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def insert_watchlist(self, watchlist):
+        try:
+            session = Session()
+            result = session.query(Watchlist).filter_by(sid = watchlist.sid).first()
+            if result is None:
+                self.logger.info("inserting {} watchlist for sid {}".format(watchlist.sid, watchlist.start_date))
+                session.add(watchlist)
+            else:
+                self.logger.info("db found {} watchlist for sid {}".format(watchlist.sid, watchlist.start_date))
+            session.commit()
+            return "done"
+        except Exception as e:
+            message = "Exception in insert_watchlist: %s" % e
+            self.logger.exception(message + str(e))
+            return message
+        finally:
+            session.close()
+
+    def query_watchlist(self, sid, status):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            query = f"""
+                SELECT * FROM watchlist
+                WHERE sid = '{sid}'
+                AND status = '{status}'
+            """
+            self.logger.info(query)
+            df = pd.read_sql_query(query, cnx)
+            self.logger.info("watchlist result returned for {} in status {}".format(sid, status))
+            return df
+        except Exception as e:
+            message = "Exception in query_watchlist: {}".format(e)
             self.logger.exception(message)
             return message
 
