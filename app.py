@@ -30,7 +30,7 @@ cache = Cache(app, config={"CACHE_TYPE": "simple"})
 logger = Logger("MainLogger").setup_system_logger()
 
 def make_cache_key(*args, **kwargs):
-    return request.args.get("trading_date"), request.args.get("pattern_name"), request.args.get("min_volume"), request.args.get("max_volume")
+    return request.args.get("trading_date"), request.args.get("pattern_name"), request.args.get("min_volume"), request.args.get("max_volume"), request.args.get("status")
 
 @app.route("/")
 def index():
@@ -103,7 +103,7 @@ def getStockPatterns():
     else:
         return "no pattern found"
 
-def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
+def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, display_date=None):
     logger.info("getting output for %s "%(sid))
     aastock_code = sid.split(".")[0].zfill(5)
     aastock_dynamic_chart_image_url = "http://www.aastocks.com/tc/stocks/quote/dynamic-chart.aspx?symbol={}".format(aastock_code)
@@ -142,8 +142,9 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
         ax2.yaxis.tick_right()
         ax2.set(xlabel="cum_volume_pect")
 
-    ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
-    ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
+    if trading_date:
+        ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
+        ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
 
     logger.info("saving plotting for [%s]"%(sid))
     img = io.BytesIO()
@@ -159,7 +160,10 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False):
     data_df.insert(0, "pattern", pattern_name) # loc at first
     data_df.drop(["pattern", "start_date", "end_date", "name", "sid_x", "sid_y"], axis=1, inplace=True)
 
-    converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a></div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid)
+    if display_date:
+        converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a> (%s)</div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid, display_date)
+    else:
+        converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a></div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid)
     converted_output += "<div class='row'>%s</div><br>" %(data_df.to_html(index=False))
     converted_output += "<div class='row'><img src='data:image/png;base64,%s'></div><br>" %(pattern_obj)
     converted_output += "<div class='row'><img src='%s'></div><br>" %(aastock_chart_image_url)
@@ -341,6 +345,42 @@ def _get_summary_output(sid, data_df):
     sub_converted_output += "<div style='height: 50px !important;'></div></section><br>"
     logger.info("total patterns for [%s]: [%s] "%(sid, len(result_df)))
     return sub_converted_output
+
+@app.route("/watchlist")
+def watchlist():
+    return app.send_static_file("watchlist.html")
+
+@app.route("/getWatchlist", methods=["GET"])
+@cache.cached(timeout=3600, key_prefix=make_cache_key)
+def getWatchlist():
+    db = DBHelper()
+    pattern_name = request.args.get("pattern_name")
+    status = request.args.get("status")
+    logger.info("start finding [%s] patterns for [%s] status"%(pattern_name, status))
+
+    watchlist_df = db.query_watchlist(pattern_name, status)
+    logger.info("total stocks: [%s] "%(len(watchlist_df)))
+    if len(watchlist_df) > 0:
+        print(watchlist_df)
+        converted_output = "<div><nav class='sidediv'><ul>"
+        for index, row in watchlist_df.iterrows():
+            # logger.info(row["sid"])
+            sid = row["sid"]
+            start_date = row["start_date"]
+            pct_chg = round(row["pct_diff"], 2)
+            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(sid, pattern_name, sid, pct_chg, start_date[:10])
+        converted_output += "</ul></nav>"
+
+        converted_output += "<div class='content'>"
+        for index, row in watchlist_df.iterrows():
+            sid = row["sid"]
+            converted_output += _get_stock_output(db, None, sid, pattern_name)
+        converted_output += "</div></div><br>"
+
+        logger.info("end of getWatchlist()")
+        return render_template('result.html', content = converted_output)
+    else:
+        return "no watchlist found"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", PORT))

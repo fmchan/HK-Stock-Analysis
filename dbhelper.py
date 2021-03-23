@@ -271,18 +271,24 @@ class DBHelper:
         finally:
             session.close()
 
-    def query_watchlist(self, sid, pattern, status):
+    def query_watchlist(self, pattern, status):
         try:
             cnx = sqlite3.connect(DB_PATH)
             query = f"""
-                SELECT * FROM watchlist
-                WHERE sid = '{sid}'
-                AND pattern = '{pattern}'
-                AND status = '{status}'
+                SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date
+                FROM stocks As curr
+                JOIN stocks As prev
+                ON curr.sid = prev.sid
+                JOIN watchlist as w
+                ON curr.sid = w.sid
+                WHERE w.pattern = '{pattern}'
+                AND w.status = '{status}'
+                AND date(prev.date) = date(w.start_date)
+                AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
             """
             self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
-            self.logger.info("watchlist result returned for {} {} in status {}".format(pattern, sid, status))
+            self.logger.info("watchlist result returned for {} in status {}".format(pattern, status))
             return df
         except Exception as e:
             message = "Exception in query_watchlist: {}".format(e)
@@ -315,16 +321,17 @@ if __name__ == "__main__":
     cnx = sqlite3.connect(DB_PATH)
     provider = 'YAHOO'
     market = 'HK'
+    sid = '0700.HK'
     # sid = '1155.HK'
     # sid = '1698.HK'
-    sid = '8171.HK'
+    # sid = '8171.HK'
     # sid = '8256.HK'
     # db.delete_expired_stocks(sid)
     df = db.query_stock(provider, market, sid, start='2019-04-01')
     # df = db.query_pattern(start_date='2021-01-15')
     print(df)
-    # watchlist = Watchlist(sid, "SEPA", "A", "2021-03-23")
+    # watchlist = Watchlist(sid, "SEPA", "A", "2021-02-23")
     # db.insert_watchlist(watchlist)
-    # db.update_watchlist_enddate(sid, "SEPA", "2021-03-23")
-    # df = db.query_watchlist(sid, "SEPA", "I")
+    # # db.update_watchlist_enddate(sid, "SEPA", "2021-03-23")
+    # df = db.query_watchlist("SEPA", "A")
     # print(df)

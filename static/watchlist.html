@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+<meta charset="UTF-8">
+<title>Stock Patterns Founder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+<link rel="stylesheet" href="/resources/demos/style.css">
+<!-- <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}"/> -->
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+<style> body {font-family: 微软雅黑;} </style>
+</head>
+<body>
+<div class="container">
+  <br>
+  <h2>Stock Patterns Watchlist</h2>
+  <p>To get the stock patterns from watchlist</p>
+  <div class="row" >
+    <form action="/getWatchlist" method="get" target="_blank">
+      <table>
+        <tr>
+          <th>Pattern:</th>
+          <td>
+            <select id="pattern_name" name="pattern_name" required>
+              <option selected="selected" value="SEPA">SEPA</option>
+              <option value="SEPA2">SEPA2</option>
+              <option value="SEPA3">SEPA3</option>
+              <option value="CUP_HANDLE">Cup & Handle</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th>Status:</th>
+          <td>
+            <select id="status" name="status" required>
+              <option selected="selected" value="A">Active</option>
+              <option value="I">Inactive</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <button type="submit" formaction="/getWatchlist" id="getWatchlist">Get watchlist</button>
+          </td>
+        </tr>
+      </table>
+      <br>
+    </form>
+  </div>
+</div>
+</body>
+<script>
+</script>
+</html>
