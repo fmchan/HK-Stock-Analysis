@@ -30,16 +30,16 @@ cache = Cache(app, config={"CACHE_TYPE": "simple"})
 logger = Logger("MainLogger").setup_system_logger()
 
 def make_cache_key(*args, **kwargs):
-    return request.form.get("trading_date"), request.form.get("pattern_name"), request.form.get("min_volume"), request.form.get("max_volume")
+    return request.args.get("trading_date"), request.args.get("pattern_name"), request.args.get("min_volume"), request.args.get("max_volume")
 
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
 
-@app.route("/compareStockPatterns", methods=["GET", "POST"])
+@app.route("/compareStockPatterns", methods=["GET"])
 def compareStockPatterns():
     db = DBHelper()
-    trading_date = request.form.get("trading_date")
+    trading_date = request.args.get("trading_date")
     logger.info("compare patterns which dated on [%s]"%(trading_date))
 
     SEPA_df = db.query_pattern(start_date=trading_date, name="SEPA")
@@ -70,14 +70,14 @@ def compareStockPatterns():
     logger.info("end of compareStockPatterns()")
     return render_template('compare.html', trading_date = trading_date, content = converted_output)
 
-@app.route("/getStockPatterns", methods=["GET", "POST"])
+@app.route("/getStockPatterns", methods=["GET"])
 @cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getStockPatterns():
     db = DBHelper()
-    trading_date = request.form.get("trading_date")
-    pattern_name = request.form.get("pattern_name")
-    min_volume = float(request.form.get("min_volume")) * 1_000_000
-    max_volume = float(request.form.get("max_volume")) * 1_000_000
+    trading_date = request.args.get("trading_date")
+    pattern_name = request.args.get("pattern_name")
+    min_volume = float(request.args.get("min_volume")) * 1_000_000
+    max_volume = float(request.args.get("max_volume")) * 1_000_000
     logger.info("start finding [%s] patterns in volume range [%s] to [%s] which dated on [%s]"%(pattern_name, min_volume, max_volume, trading_date))
 
     patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name, min_volume=min_volume, max_volume=max_volume)
@@ -220,12 +220,12 @@ def _append_features_data(db, sid, trading_date):
 def stockScreener():
     return app.send_static_file("screener.html")
 
-@app.route("/getIncomeSummary", methods=["GET", "POST"])
+@app.route("/getIncomeSummary", methods=["GET"])
 def getIncomeSummary():
     db = DBHelper()
-    min_eps_growth = request.form.get("min_eps_growth")
-    min_net_profit_growth = request.form.get("min_net_profit_growth")
-    is_increase = request.form.get("is_increase")
+    min_eps_growth = request.args.get("min_eps_growth")
+    min_net_profit_growth = request.args.get("min_net_profit_growth")
+    is_increase = request.args.get("is_increase")
     if is_increase and is_increase == "True":
         is_increase = True
     else:
