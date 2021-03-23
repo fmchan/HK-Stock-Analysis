@@ -8,7 +8,6 @@ from models.stock import Stock
 from models.pattern import Pattern
 from models.income import Income
 from models.watchlist import Watchlist
-from datetime import date, timedelta
 import datetime as dt
 from configs.settings import DB_PATH
 from configs.base import Session, engine, Base
@@ -16,7 +15,7 @@ from configs.logger import Logger
 import logging
 import json
 import os
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import sqlite3
 import csv
 import pandas as pd
@@ -241,13 +240,14 @@ class DBHelper:
 
     def insert_watchlist(self, watchlist):
         try:
+            watchlist.start_date = datetime.strptime(watchlist.start_date, "%Y-%m-%d")
             session = Session()
-            result = session.query(Watchlist).filter_by(sid = watchlist.sid).first()
+            result = session.query(Watchlist).filter_by(sid = watchlist.sid, pattern = watchlist.pattern).first()
             if result is None:
-                self.logger.info("inserting {} watchlist for sid {}".format(watchlist.sid, watchlist.start_date))
+                self.logger.info("inserting {} watchlist for sid {}".format(watchlist.pattern, watchlist.sid))
                 session.add(watchlist)
             else:
-                self.logger.info("db found {} watchlist for sid {}".format(watchlist.sid, watchlist.start_date))
+                self.logger.info("db found {} watchlist for sid {}".format(watchlist.pattern, watchlist.sid))
             session.commit()
             return "done"
         except Exception as e:
@@ -257,17 +257,32 @@ class DBHelper:
         finally:
             session.close()
 
-    def query_watchlist(self, sid, status):
+    def update_watchlist_enddate(self, sid, pattern, end_date):
+        try:
+            self.logger.info("updating {} watchlist for sid {}".format(pattern, sid))
+            end_date = datetime.strptime(end_date, "%Y-%m-%d")
+            session = Session()
+            session.query(Watchlist).filter_by(sid = sid, pattern = pattern).update({"end_date": end_date, "status": "I"})
+            session.commit()
+        except Exception as e:
+            message = "Exception in update_watchlist_enddate: %s" % e
+            self.logger.exception(message + str(e))
+            return message
+        finally:
+            session.close()
+
+    def query_watchlist(self, sid, pattern, status):
         try:
             cnx = sqlite3.connect(DB_PATH)
             query = f"""
                 SELECT * FROM watchlist
                 WHERE sid = '{sid}'
+                AND pattern = '{pattern}'
                 AND status = '{status}'
             """
             self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
-            self.logger.info("watchlist result returned for {} in status {}".format(sid, status))
+            self.logger.info("watchlist result returned for {} {} in status {}".format(pattern, sid, status))
             return df
         except Exception as e:
             message = "Exception in query_watchlist: {}".format(e)
@@ -308,3 +323,8 @@ if __name__ == "__main__":
     df = db.query_stock(provider, market, sid, start='2019-04-01')
     # df = db.query_pattern(start_date='2021-01-15')
     print(df)
+    # watchlist = Watchlist(sid, "SEPA", "A", "2021-03-23")
+    # db.insert_watchlist(watchlist)
+    # db.update_watchlist_enddate(sid, "SEPA", "2021-03-23")
+    # df = db.query_watchlist(sid, "SEPA", "I")
+    # print(df)
