@@ -1,7 +1,6 @@
 #-*- coding: utf-8 -*-
 import os
 from flask import Flask, request, jsonify, render_template
-from datetime import datetime
 from configs.settings import HOST, PORT, DB_QUERY_START_DATE, DATA_PATH
 import datetime as dt
 from configs.logger import Logger
@@ -18,10 +17,12 @@ import json as json_parser
 from collections import OrderedDict
 from flask_caching import Cache
 from dateutil.relativedelta import *
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from datautils import pattern_utils
 from configs.settings import DB_PATH
 import sqlite3
+from models.watchlist import Watchlist
+from configs.table_types import Tables
 
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
@@ -95,7 +96,7 @@ def getStockPatterns():
         converted_output += "<div class='content'>"
         for index, row in patterns_df.iterrows():
             sid = row["sid"].values[0]
-            converted_output += _get_stock_output(db, trading_date, sid, pattern_name)
+            converted_output += _get_stock_output(db, trading_date, sid, pattern_name, table_type=Tables.PATTERN_DETAILS.name)
         converted_output += "</div></div><br>"
 
         logger.info("end of getStockPatterns()")
@@ -103,7 +104,7 @@ def getStockPatterns():
     else:
         return "no pattern found"
 
-def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, display_date=None):
+def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, table_type=Tables.PATTERN_DETAILS.name, start_date=None):
     logger.info("getting output for %s "%(sid))
     aastock_code = sid.split(".")[0].zfill(5)
     aastock_dynamic_chart_image_url = "http://www.aastocks.com/tc/stocks/quote/dynamic-chart.aspx?symbol={}".format(aastock_code)
@@ -160,10 +161,29 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, dis
     data_df.insert(0, "pattern", pattern_name) # loc at first
     data_df.drop(["pattern", "start_date", "end_date", "name", "sid_x", "sid_y"], axis=1, inplace=True)
 
-    if display_date:
-        converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a> (%s)</div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid, display_date)
-    else:
-        converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a></div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid)
+    is_watchlist_record = True if db.query_watchlist_by_sid(sid, pattern_name).iloc[0].values[0] > 0 else False
+    bookmark_button_html = "<button type='button' sid='%s' pattern='%s' class='bookmark'>Bookmark</button>" %(sid, pattern_name)
+    if is_watchlist_record:
+        bookmark_button_html = "<button type='button' sid='%s' pattern='%s' disabled class='bookmark'>Bookmark</button>" %(sid, pattern_name)
+    if table_type == Tables.ARCHIVED_WATCHLIST.name:
+        # converted_output = "<section id='%s.%s'><div class='row'><a target='_blank' href='%s'>%s</a></div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid)
+        converted_output = "<section id='%s.%s'> \
+            <div class='row'> \
+                <a target='_blank' href='%s'>%s</a> \
+                <button type='button' sid='%s' pattern='%s' start_date='%s' class='delete'>Delete</button> \
+            </div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid, sid, pattern_name, start_date)
+    elif table_type == Tables.PATTERN_DETAILS.name:
+        converted_output = "<section id='%s.%s'> \
+            <div class='row'> \
+                <a target='_blank' href='%s'>%s</a>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid)
+        converted_output += bookmark_button_html
+        converted_output += "</div><br>"
+    elif table_type == Tables.WATCHLIST.name:
+        converted_output = "<section id='%s.%s'> \
+            <div class='row'> \
+                <a target='_blank' href='%s'>%s</a> \
+                <button type='button' sid='%s' pattern='%s' class='archive'>Archive</button> \
+            </div><br>" %(sid, pattern_name, aastock_dynamic_chart_image_url, sid, sid, pattern_name)
     converted_output += "<div class='row'>%s</div><br>" %(data_df.to_html(index=False))
     converted_output += "<div class='row'><img src='data:image/png;base64,%s'></div><br>" %(pattern_obj)
     converted_output += "<div class='row'><img src='%s'></div><br>" %(aastock_chart_image_url)
@@ -351,13 +371,15 @@ def watchlist():
     return app.send_static_file("watchlist.html")
 
 @app.route("/getWatchlist", methods=["GET"])
-@cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getWatchlist():
     db = DBHelper()
     pattern_name = request.args.get("pattern_name")
     status = request.args.get("status")
     logger.info("start finding [%s] patterns for [%s] status"%(pattern_name, status))
-
+    if status == "A":
+        table_type = table_type=Tables.WATCHLIST.name
+    elif status == "I":
+        table_type = table_type=Tables.ARCHIVED_WATCHLIST.name
     watchlist_df = db.query_watchlist(pattern_name, status)
     logger.info("total stocks: [%s] "%(len(watchlist_df)))
     if len(watchlist_df) > 0:
@@ -366,21 +388,52 @@ def getWatchlist():
         for index, row in watchlist_df.iterrows():
             # logger.info(row["sid"])
             sid = row["sid"]
-            start_date = row["start_date"]
+            start_date = row["start_date"][:10]
             pct_chg = round(row["pct_diff"], 2)
-            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(sid, pattern_name, sid, pct_chg, start_date[:10])
+            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(sid, pattern_name, sid, pct_chg, start_date)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
         for index, row in watchlist_df.iterrows():
             sid = row["sid"]
-            converted_output += _get_stock_output(db, None, sid, pattern_name)
+            start_date = row["start_date"][:10]
+            converted_output += _get_stock_output(db, None, sid, pattern_name, table_type=table_type, start_date=start_date)
         converted_output += "</div></div><br>"
 
         logger.info("end of getWatchlist()")
         return render_template('result.html', content = converted_output)
     else:
         return "no watchlist found"
+
+@app.route('/bookmark', methods=['POST'])
+def bookmark():
+    logger.info("start bookmark")
+    sid = request.json["sid"]
+    pattern = request.json["pattern"]
+    logger.info('%s %s bookmark' %(sid, pattern))
+    uid = "admin" # TODO
+    watchlist = Watchlist(uid, sid, pattern, "A", datetime.today().strftime('%Y-%m-%d'))
+    DBHelper().insert_watchlist(watchlist)
+    return "bookmark successfully for " + sid
+
+@app.route('/archive', methods=['POST'])
+def archive_bookmark():
+    logger.info("start archive")
+    sid = request.json["sid"]
+    pattern = request.json["pattern"]
+    logger.info('%s %s archive' %(sid, pattern))
+    DBHelper().update_watchlist_enddate(sid, pattern, datetime.today().strftime('%Y-%m-%d'))
+    return "archive successfully for " + sid
+
+@app.route('/delete', methods=['POST'])
+def delete_archive_bookmark():
+    logger.info("start delete")
+    sid = request.json["sid"]
+    pattern = request.json["pattern"]
+    start_date = request.json["start_date"]
+    logger.info('%s %s delete' %(sid, pattern))
+    DBHelper().delete_watchlist(sid, pattern, start_date)
+    return "delete successfully for " + sid
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", PORT))

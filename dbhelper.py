@@ -242,7 +242,7 @@ class DBHelper:
         try:
             watchlist.start_date = datetime.strptime(watchlist.start_date, "%Y-%m-%d")
             session = Session()
-            result = session.query(Watchlist).filter_by(sid = watchlist.sid, pattern = watchlist.pattern).first()
+            result = session.query(Watchlist).filter_by(sid = watchlist.sid, pattern = watchlist.pattern, end_date = None).first() # allow to recreate if end_date is null
             if result is None:
                 self.logger.info("inserting {} watchlist for sid {}".format(watchlist.pattern, watchlist.sid))
                 session.add(watchlist)
@@ -257,12 +257,12 @@ class DBHelper:
         finally:
             session.close()
 
-    def update_watchlist_enddate(self, sid, pattern, end_date):
+    def update_watchlist_enddate(self, sid, pattern, end_date, uid="admin"):
         try:
             self.logger.info("updating {} watchlist for sid {}".format(pattern, sid))
             end_date = datetime.strptime(end_date, "%Y-%m-%d")
             session = Session()
-            session.query(Watchlist).filter_by(sid = sid, pattern = pattern).update({"end_date": end_date, "status": "I"})
+            session.query(Watchlist).filter_by(sid = sid, pattern = pattern, uid=uid).update({"end_date": end_date, "status": "I"})
             session.commit()
         except Exception as e:
             message = "Exception in update_watchlist_enddate: %s" % e
@@ -271,20 +271,70 @@ class DBHelper:
         finally:
             session.close()
 
-    def query_watchlist(self, pattern, status):
+    def delete_watchlist(self, sid, pattern, start_date, uid="admin"):
+        try:
+            self.logger.info("deleting {} watchlist for sid {} on {}".format(pattern, sid, start_date))
+            start_date = datetime.strptime(start_date, "%Y-%m-%d")
+            session = Session()
+            session.query(Watchlist).filter_by(sid = sid, pattern = pattern, uid = uid, start_date = start_date).delete()
+            session.commit()
+        except Exception as e:
+            message = "Exception in delete_watchlist: %s" % e
+            self.logger.exception(message + str(e))
+            return message
+        finally:
+            session.close()
+
+    def query_watchlist_by_sid(self, sid, pattern, uid="admin"):
         try:
             cnx = sqlite3.connect(DB_PATH)
             query = f"""
-                SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date
-                FROM stocks As curr
-                JOIN stocks As prev
-                ON curr.sid = prev.sid
-                JOIN watchlist as w
-                ON curr.sid = w.sid
-                WHERE w.pattern = '{pattern}'
-                AND w.status = '{status}'
-                AND date(prev.date) = date(w.start_date)
-                AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
+                SELECT count(1) as cnt FROM watchlist WHERE sid = '{sid}' AND status = 'A' AND pattern = '{pattern}' AND uid = '{uid}' AND end_date IS NULL
+            """
+            self.logger.info(query)
+            df = pd.read_sql_query(query, cnx)
+            self.logger.info("watchlist result returned for {} for sid {}".format(pattern, sid))
+            return df
+        except Exception as e:
+            message = "Exception in query_watchlist_by_sid: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def query_watchlist(self, pattern, status, uid="admin"):
+        try:
+            cnx = sqlite3.connect(DB_PATH)
+            # query = f"""
+            #     SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date
+            #     FROM stocks As curr
+            #     JOIN stocks As prev
+            #     ON curr.sid = prev.sid
+            #     JOIN watchlist as w
+            #     ON curr.sid = w.sid
+            #     WHERE w.pattern = '{pattern}'
+            #     AND w.status = '{status}'
+            #     AND date(prev.date) = date(w.start_date)
+            #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
+            # """
+            query = f"""
+                SELECT 
+                    one.sid, one.status, one.pattern, one.start_date, 
+                    CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
+                    FROM (SELECT * FROM watchlist WHERE status = '{status}' AND pattern = '{pattern}' AND uid = '{uid}') as one
+                LEFT JOIN 
+                    (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date 
+                    FROM stocks As curr
+                    JOIN stocks As prev
+                    ON curr.sid = prev.sid
+                    JOIN watchlist as w
+                    ON curr.sid = w.sid
+                    WHERE w.pattern = '{pattern}'
+                    AND w.status = '{status}'
+                    AND pattern = '{pattern}'
+                    AND date(prev.date) = date(w.start_date)
+                    AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as two
+                ON two.sid = one.sid
+                AND two.start_date = one.start_date
+                ORDER BY one.start_date
             """
             self.logger.info(query)
             df = pd.read_sql_query(query, cnx)
@@ -333,5 +383,6 @@ if __name__ == "__main__":
     # watchlist = Watchlist(sid, "SEPA", "A", "2021-02-23")
     # db.insert_watchlist(watchlist)
     # # db.update_watchlist_enddate(sid, "SEPA", "2021-03-23")
-    # df = db.query_watchlist("SEPA", "A")
-    # print(df)
+    db.delete_watchlist("3800.HK", "SEPA", "2021-02-04")
+    df = db.query_watchlist("SEPA", "A")
+    print(df)

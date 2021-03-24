@@ -7,6 +7,7 @@ from configs.settings import DB_ENGINE
 class Watchlist(Base):
     __tablename__ = 'watchlist'
     id = Column(Integer, primary_key = True)
+    uid = Column(String(10), nullable = True, index=True)
     sid = Column(String(10), nullable = False, index=True)
     pattern = Column(String(10), nullable = False, index=True)
     status = Column(String(4), nullable = False, index=True)
@@ -15,7 +16,8 @@ class Watchlist(Base):
     created_date = Column(DateTime, nullable = True)
     updated_date = Column(DateTime, nullable = True)
 
-    def __init__(self, sid, pattern, status, start_date):
+    def __init__(self, uid, sid, pattern, status, start_date):
+        self.uid = uid
         self.sid = sid
         self.pattern = pattern
         self.status = status
@@ -23,6 +25,7 @@ class Watchlist(Base):
 
     def dict(self):
         return {'id': self.id,
+                'uid': self.uid,
                 'sid': self.sid,
                 'pattern': self.pattern,
                 'status': self.status,
