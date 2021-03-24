@@ -84,13 +84,19 @@ def getStockPatterns():
     patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name, min_volume=min_volume, max_volume=max_volume)
     logger.info("total stocks: [%s] "%(len(patterns_df)))
     if len(patterns_df) > 0:
-        print(patterns_df)
-        converted_output = "<div><nav class='sidediv'><ul>"
+        # converted_output = "<div><nav class='sidediv'><ul>"
+        converted_output = "<div><nav class='sidediv'> \
+            <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
+            <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
+            <button onclick=\"sortList('float', 'volume', 'asc')\">Sort By Volume ASC</button> \
+            <button onclick=\"sortList('float', 'volume', 'desc')\">Sort By Volume Desc</button> \
+            <ul id='sideul'>"
         for index, row in patterns_df.iterrows():
             # logger.info(row["sid"])
             sid = row["sid"].values[0]
             pct_chg = round(row["pct_diff"], 2)
-            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)</li>" %(sid, pattern_name, sid, pct_chg)
+            volume = row["volume"]
+            converted_output += "<li volume='%s' return='%s'><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(vol: %s)</span></li>" %(volume, pct_chg, sid, pattern_name, sid, pct_chg, volume)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
@@ -383,14 +389,18 @@ def getWatchlist():
     watchlist_df = db.query_watchlist(pattern_name, status)
     logger.info("total stocks: [%s] "%(len(watchlist_df)))
     if len(watchlist_df) > 0:
-        print(watchlist_df)
-        converted_output = "<div><nav class='sidediv'><ul>"
+        converted_output = "<div><nav class='sidediv'> \
+            <button onclick=\"sortList('date', 'start_date', 'asc')\">Sort By Date ASC</button> \
+            <button onclick=\"sortList('date', 'start_date', 'desc')\">Sort By Date Desc</button> \
+            <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
+            <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
+            <ul id='sideul'>"
         for index, row in watchlist_df.iterrows():
             # logger.info(row["sid"])
             sid = row["sid"]
             start_date = row["start_date"][:10]
             pct_chg = round(row["pct_diff"], 2)
-            converted_output += "<li><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(sid, pattern_name, sid, pct_chg, start_date)
+            converted_output += "<li start_date='%s' return='%s'><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(start_date, pct_chg, sid, pattern_name, sid, pct_chg, start_date)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"

@@ -163,7 +163,7 @@ class DBHelper:
             query = f"""
                 select * from
                     (SELECT start_date, end_date, name, sid FROM patterns WHERE date(start_date) = '{start_date}' and name = '{name}') as p
-                join (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, curr.sid
+                join (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, prev.sid, prev.volume
                     FROM stocks As curr
                     JOIN stocks As prev
                     ON curr.sid = prev.sid
@@ -315,6 +315,31 @@ class DBHelper:
             #     AND date(prev.date) = date(w.start_date)
             #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
             # """
+
+            # query for return only one sid in watchlist
+            # query = f"""
+            #     SELECT
+            #     one.sid, one.status, one.pattern, one.start_date,
+            #     CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
+            #     FROM (SELECT min(start_date) as start_date, sid, status, pattern FROM watchlist WHERE status = 'I' AND pattern = 'SEPA' AND uid = 'admin' GROUP BY sid) as one
+            #     LEFT JOIN
+            #     (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, min(w.start_date) as start_date
+            #     FROM stocks As curr
+            #     JOIN stocks As prev
+            #     ON curr.sid = prev.sid
+            #     JOIN watchlist as w
+            #     ON curr.sid = w.sid
+            #     WHERE w.pattern = 'SEPA'
+            #     AND w.status = 'I'
+            #     AND pattern = 'SEPA'
+            #     AND date(prev.date) = date(w.start_date)
+            #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid) 
+            #     GROUP BY prev.sid) as two
+            #     ON two.sid = one.sid 
+            #     AND two.start_date = one.start_date
+            #     order by one.start_date
+            # """
+
             query = f"""
                 SELECT 
                     one.sid, one.status, one.pattern, one.start_date, 
