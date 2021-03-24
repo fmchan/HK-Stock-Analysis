@@ -86,11 +86,13 @@ def getStockPatterns():
     if len(patterns_df) > 0:
         # converted_output = "<div><nav class='sidediv'><ul>"
         converted_output = "<div><nav class='sidediv'> \
-            <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
-            <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
-            <button onclick=\"sortList('float', 'volume', 'asc')\">Sort By Volume ASC</button> \
-            <button onclick=\"sortList('float', 'volume', 'desc')\">Sort By Volume Desc</button> \
+            <button class='return_btn sort_btn' sort='desc' onclick=\"sortList('float', 'return')\">return ↓</button> \
+            <button class='volume_btn sort_btn' sort='desc' onclick=\"sortList('float', 'volume')\">volume ↓</button> \
             <ul id='sideul'>"
+            # <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
+            # <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
+            # <button onclick=\"sortList('float', 'volume', 'asc')\">Sort By Volume ASC</button> \
+            # <button onclick=\"sortList('float', 'volume', 'desc')\">Sort By Volume Desc</button> \
         for index, row in patterns_df.iterrows():
             # logger.info(row["sid"])
             sid = row["sid"].values[0]
@@ -390,11 +392,13 @@ def getWatchlist():
     logger.info("total stocks: [%s] "%(len(watchlist_df)))
     if len(watchlist_df) > 0:
         converted_output = "<div><nav class='sidediv'> \
-            <button onclick=\"sortList('date', 'start_date', 'asc')\">Sort By Date ASC</button> \
-            <button onclick=\"sortList('date', 'start_date', 'desc')\">Sort By Date Desc</button> \
-            <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
-            <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
+            <button class='start_date_btn sort_btn' sort='desc' onclick=\"sortList('date', 'start_date')\">start_date ↓</button> \
+            <button class='return_btn sort_btn' sort='desc' onclick=\"sortList('date', 'return')\">return ↓</button> \
             <ul id='sideul'>"
+            # <button onclick=\"sortList('date', 'start_date', 'asc')\">Sort By Date ASC</button> \
+            # <button onclick=\"sortList('date', 'start_date', 'desc')\">Sort By Date Desc</button> \
+            # <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
+            # <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
         for index, row in watchlist_df.iterrows():
             # logger.info(row["sid"])
             sid = row["sid"]
