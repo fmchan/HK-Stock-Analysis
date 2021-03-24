@@ -93,13 +93,13 @@ function sortList(primitive, field, sort) {
       }
       else if (primitive == "float") {
         if (sort == "asc") {
-          if ((Math.round(b[i].getAttribute(field) * 100) > Math.round(b[i + 1].getAttribute(field) * 100))) {
+          if ((Math.round(b[i].getAttribute(field) * 100) < Math.round(b[i + 1].getAttribute(field) * 100))) {
             shouldSwitch = true;
             break;
           }
         }
         else if (sort == "desc") {
-          if ((Math.round(b[i].getAttribute(field) * 100) < Math.round(b[i + 1].getAttribute(field) * 100))) {
+          if ((Math.round(b[i].getAttribute(field) * 100) > Math.round(b[i + 1].getAttribute(field) * 100))) {
             shouldSwitch = true;
             break;
           }
