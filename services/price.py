@@ -36,16 +36,20 @@ def get_hist_stock_price(sid, start_date='2001-07-15', provider='YAHOO', market=
         if len(df) > 0:
             df['date'] = pd.to_datetime(df.index)
             df.rename(columns={'Open': 'open', 'High': 'high', 'Low': 'low', 'Close': 'close', 'Volume': 'volume', 'Adj Close': 'adj_close'}, inplace=True)
-            cnx = sqlite3.connect(DB_PATH)
-            cnx.execute("PRAGMA journal_mode=WAL")
             df['provider'] = provider
             df['market'] = market
             df['sid'] = sid
-            # logger.info('before inserting to temp {}'.format(sid))
-            df.to_sql('temporary_stocks', cnx, if_exists='replace', index=False)
-            logger.info('before inserting to stocks {}'.format(sid))
-            # df.to_sql('stocks', cnx, if_exists='append', index=False)
+            # cnx = sqlite3.connect(DB_PATH)
+            # cnx.execute("PRAGMA journal_mode=WAL")
+            # # logger.info('before inserting to temp {}'.format(sid))
+            # df.to_sql('temporary_stocks', cnx, if_exists='replace', index=False)
+            # logger.info('before inserting to stocks {}'.format(sid))
+            # # df.to_sql('stocks', cnx, if_exists='append', index=False)
             with engine.begin() as cnx:
+                cnx.execute("PRAGMA journal_mode=WAL")
+                # logger.info('before inserting to temp {}'.format(sid))
+                df.to_sql('temporary_stocks', cnx, if_exists='replace', index=False)
+                logger.info('before inserting to stocks {}'.format(sid))
                 insert_sql = f"""
                     INSERT OR IGNORE INTO stocks (provider, market, sid, date, open, high, low, close, volume, adj_close) 
                         SELECT provider, market, sid, date, open, high, low, close, volume, adj_close 

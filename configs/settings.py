@@ -2,6 +2,7 @@
 # from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.chrome.options import Options
 import platform
+from datetime import datetime, timedelta
 
 # output settings
 ALLOW_OVERWRITE = False # set False to read the data file instead of re-scraping
@@ -14,7 +15,8 @@ SCROLL_NUM = 20
 SECOND_TIME_OUT = 20
 SCROLL_PAUSE_TIME = 1
 SCRAP_PAUSE_TIME = 5
-DB_QUERY_START_DATE = "2019-01-01"
+# DB_QUERY_START_DATE = "2019-01-01"
+DB_QUERY_START_DATE = datetime.strftime(datetime.now() - timedelta(400), '%Y-%m-%d') # cal sma 200 from 180 days before
 
 # TA settings
 CURRENT_VOLUME_FILTER = 1_000_000

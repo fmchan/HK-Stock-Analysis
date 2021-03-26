@@ -68,16 +68,17 @@ class DBHelper:
                 start = datetime.strftime(datetime.now()-timedelta(200), '%Y-%m-%d')
             if end is None:
                 end = datetime.strftime(datetime.now()+timedelta(2), '%Y-%m-%d')
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT * FROM stocks
-                WHERE sid = '{sid}'
-                AND provider = '{provider}'
-                AND market = '{market}'
-                AND date BETWEEN '{start}' AND '{end}'
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            # cnx = sqlite3.connect(DB_PATH)
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT * FROM stocks
+                    WHERE sid = '{sid}'
+                    AND provider = '{provider}'
+                    AND market = '{market}'
+                    AND date BETWEEN '{start}' AND '{end}'
+                """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             if letter_case:
                 df.rename(columns={'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
                 df.set_index('Date', inplace=True, drop=False)
@@ -98,26 +99,26 @@ class DBHelper:
 
     def query_stock_by_volume(self, top, volume):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT sid
-                FROM (
-                    SELECT *
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT sid
                     FROM (
-                        SELECT
-                            sid, volume, date,
-                            ROW_NUMBER() OVER (
-                                PARTITION BY sid
-                                ORDER BY date DESC
-                            ) rn
-                        FROM stocks)
-                    WHERE
-                        rn <= {top}
-                    GROUP BY sid
-                    HAVING AVG(volume) > {volume})
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+                        SELECT *
+                        FROM (
+                            SELECT
+                                sid, volume, date,
+                                ROW_NUMBER() OVER (
+                                    PARTITION BY sid
+                                    ORDER BY date DESC
+                                ) rn
+                            FROM stocks)
+                        WHERE
+                            rn <= {top}
+                        GROUP BY sid
+                        HAVING AVG(volume) > {volume})
+                """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("query_stock_by_volume result returned")
             return df
         except Exception as e:
@@ -127,16 +128,16 @@ class DBHelper:
 
     def query_pattern(self, start_date, end_date=None, name=None):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT start_date, end_date, name, sid FROM patterns
-                WHERE date(start_date) = '{start_date}' 
-            """
-            if name is not None:
-                query += f" and name = '{name}'"
-            query += " ORDER BY name desc, sid"
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT start_date, end_date, name, sid FROM patterns
+                    WHERE date(start_date) = '{start_date}' 
+                """
+                if name is not None:
+                    query += f" and name = '{name}'"
+                query += " ORDER BY name desc, sid"
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("query_pattern result returned")
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
@@ -148,32 +149,20 @@ class DBHelper:
 
     def query_pattern_w_pct_chg(self, start_date, name, min_volume, max_volume):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            # select * from
-            # (SELECT start_date, end_date, name, sid FROM patterns WHERE start_date = "2021-02-10 00:00:00.000000" and name = "SEPA3") as p
-            # join (
-            # SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, curr.sid
-            # FROM stocks As curr
-            # JOIN stocks As prev
-            # ON curr.sid = prev.sid
-            # where prev.date = '2021-02-10 00:00:00'
-            # AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as c
-            # on p.sid = c.sid
-            # order by pct_diff desc
-            query = f"""
-                select * from
-                    (SELECT start_date, end_date, name, sid FROM patterns WHERE date(start_date) = '{start_date}' and name = '{name}') as p
-                join (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, prev.sid, prev.volume
-                    FROM stocks As curr
-                    JOIN stocks As prev
-                    ON curr.sid = prev.sid
-                    where date(prev.date) = '{start_date}' AND prev.volume between '{min_volume}' AND '{max_volume}' 
-                    AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as c
-                on p.sid = c.sid
-                order by pct_diff desc
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            from_date = datetime.strftime(datetime.now()-timedelta(4), '%Y-%m-%d')
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                SELECT pt.start_date as start_date, pt.end_date as end_date, pt.sid as sid, pt.name as name, 100.0*(curr.close - prev.close) / prev.close As pct_diff, prev.volume as volume 
+                FROM (SELECT start_date, end_date, name, sid FROM patterns WHERE date(start_date) = '{start_date}' AND name = '{name}') As pt
+                JOIN (SELECT sid, close, volume, date FROM stocks WHERE date(date) = '{start_date}' AND volume BETWEEN {min_volume} AND {max_volume} ) As prev
+                ON pt.sid = prev.sid
+                JOIN (SELECT sid, close, volume, date FROM stocks WHERE date(date) >= '{from_date}') As curr
+                ON curr.sid = prev.sid
+                WHERE curr.date = (SELECT MAX(date) FROM stocks WHERE sid = prev.sid)
+                ORDER BY pct_diff DESC
+                """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("query_pattern_w_pct_chg result returned")
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
@@ -185,16 +174,16 @@ class DBHelper:
 
     def query_stock_pattern(self, sid, name=None):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT start_date, end_date, name, sid FROM patterns
-                WHERE sid = '{sid}'
-            """
-            if name is not None:
-                query += f" and name = '{name}'"
-            query += " ORDER BY name desc"
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT start_date, end_date, name, sid FROM patterns
+                    WHERE sid = '{sid}'
+                """
+                if name is not None:
+                    query += f" and name = '{name}'"
+                query += " ORDER BY name desc"
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("result returned for {}".format(sid))
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
@@ -224,13 +213,13 @@ class DBHelper:
 
     def query_income(self, sid):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT * FROM incomes
-                WHERE sid = '{sid}'
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT * FROM incomes
+                    WHERE sid = '{sid}'
+                """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("result returned for {}".format(sid))
             return df
         except Exception as e:
@@ -287,12 +276,12 @@ class DBHelper:
 
     def query_watchlist_by_sid(self, sid, pattern, uid="admin"):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            query = f"""
-                SELECT count(1) as cnt FROM watchlist WHERE sid = '{sid}' AND status = 'A' AND pattern = '{pattern}' AND uid = '{uid}' AND end_date IS NULL
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT count(1) as cnt FROM watchlist WHERE sid = '{sid}' AND status = 'A' AND pattern = '{pattern}' AND uid = '{uid}' AND end_date IS NULL
+                """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("watchlist result returned for {} for sid {}".format(pattern, sid))
             return df
         except Exception as e:
@@ -302,67 +291,83 @@ class DBHelper:
 
     def query_watchlist(self, pattern, status, uid="admin"):
         try:
-            cnx = sqlite3.connect(DB_PATH)
-            # query = f"""
-            #     SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date
-            #     FROM stocks As curr
-            #     JOIN stocks As prev
-            #     ON curr.sid = prev.sid
-            #     JOIN watchlist as w
-            #     ON curr.sid = w.sid
-            #     WHERE w.pattern = '{pattern}'
-            #     AND w.status = '{status}'
-            #     AND date(prev.date) = date(w.start_date)
-            #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
-            # """
+            with sqlite3.connect(DB_PATH) as cnx:
+                # query = f"""
+                #     SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date
+                #     FROM stocks As curr
+                #     JOIN stocks As prev
+                #     ON curr.sid = prev.sid
+                #     JOIN watchlist as w
+                #     ON curr.sid = w.sid
+                #     WHERE w.pattern = '{pattern}'
+                #     AND w.status = '{status}'
+                #     AND date(prev.date) = date(w.start_date)
+                #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
+                # """
 
-            # query for return only one sid in watchlist
-            # query = f"""
-            #     SELECT
-            #     one.sid, one.status, one.pattern, one.start_date,
-            #     CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
-            #     FROM (SELECT min(start_date) as start_date, sid, status, pattern FROM watchlist WHERE status = 'I' AND pattern = 'SEPA' AND uid = 'admin' GROUP BY sid) as one
-            #     LEFT JOIN
-            #     (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, min(w.start_date) as start_date
-            #     FROM stocks As curr
-            #     JOIN stocks As prev
-            #     ON curr.sid = prev.sid
-            #     JOIN watchlist as w
-            #     ON curr.sid = w.sid
-            #     WHERE w.pattern = 'SEPA'
-            #     AND w.status = 'I'
-            #     AND pattern = 'SEPA'
-            #     AND date(prev.date) = date(w.start_date)
-            #     AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid) 
-            #     GROUP BY prev.sid) as two
-            #     ON two.sid = one.sid 
-            #     AND two.start_date = one.start_date
-            #     order by one.start_date
-            # """
+                # query for return only one sid in watchlist
+                query = f"""
+                    SELECT one.sid, one.status, one.pattern, one.start_date,
+                        CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
+                        FROM 
+                        (
+                            SELECT min(start_date) as start_date, sid, status, pattern 
+                            FROM watchlist 
+                            WHERE status = '{status}' 
+                            AND pattern = '{pattern}' 
+                            AND uid = '{uid}' 
+                            GROUP BY sid
+                        ) as one
+                    LEFT JOIN
+                        (
+                            SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, min(w.start_date) as start_date 
+                            FROM watchlist w
+                            JOIN stocks As curr
+                            ON w.sid = curr.sid
+                            JOIN stocks As prev
+                            ON curr.sid = prev.sid
+                            WHERE pattern = '{pattern}'
+                            AND status = '{status}'
+                            AND uid = '{uid}'
+                            AND date(prev.date) = date(w.start_date)
+                            AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)
+                            GROUP BY prev.sid  
+                        ) as two
+                    ON two.sid = one.sid 
+                    AND two.start_date = one.start_date
+                    order by one.start_date DESC
+                """
 
-            query = f"""
-                SELECT 
-                    one.sid, one.status, one.pattern, one.start_date, 
-                    CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
-                    FROM (SELECT * FROM watchlist WHERE status = '{status}' AND pattern = '{pattern}' AND uid = '{uid}') as one
-                LEFT JOIN 
-                    (SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.pattern, w.start_date 
-                    FROM stocks As curr
-                    JOIN stocks As prev
-                    ON curr.sid = prev.sid
-                    JOIN watchlist as w
-                    ON curr.sid = w.sid
-                    WHERE w.pattern = '{pattern}'
-                    AND w.status = '{status}'
-                    AND pattern = '{pattern}'
-                    AND date(prev.date) = date(w.start_date)
-                    AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid)) as two
-                ON two.sid = one.sid
-                AND two.start_date = one.start_date
-                ORDER BY one.start_date
-            """
-            self.logger.info(query)
-            df = pd.read_sql_query(query, cnx)
+                # query for return all sids (with diff start_date) in watchlist
+                # query = f"""
+                #     SELECT one.sid, one.status, one.pattern, one.start_date,
+                #         CASE WHEN two.pct_diff IS NOT NULL THEN two.pct_diff ELSE 0.0 END pct_diff
+                #         FROM 
+                #         (
+                #             SELECT start_date, sid, status, pattern 
+                #             FROM watchlist 
+                #             WHERE status = '{status}' 
+                #             AND pattern = '{pattern}' 
+                #             AND uid = '{uid}'
+                #         ) as one
+                #     LEFT JOIN
+                #         (
+                #             SELECT 100.0*(curr.close - prev.close) / prev.close As pct_diff, w.sid, w.start_date 
+                #             FROM watchlist w
+                #             JOIN stocks As curr
+                #             ON w.sid = curr.sid
+                #             JOIN stocks As prev
+                #             ON curr.sid = prev.sid
+                #             WHERE pattern = '{pattern}'
+                #             AND status = '{status}'
+                #             AND uid = '{uid}'
+                #             AND date(prev.date) = date(w.start_date)
+                #             AND curr.date = (SELECT max(date) FROM stocks where sid = prev.sid) 
+                #         ) as two
+                #     ON two.sid = one.sid 
+                # """
+                self.logger.info(query)
+                df = pd.read_sql_query(query, cnx)
             self.logger.info("watchlist result returned for {} in status {}".format(pattern, status))
             return df
         except Exception as e:
@@ -408,6 +413,6 @@ if __name__ == "__main__":
     # watchlist = Watchlist(sid, "SEPA", "A", "2021-02-23")
     # db.insert_watchlist(watchlist)
     # # db.update_watchlist_enddate(sid, "SEPA", "2021-03-23")
-    db.delete_watchlist("3800.HK", "SEPA", "2021-02-04")
-    df = db.query_watchlist("SEPA", "A")
-    print(df)
+    # db.delete_watchlist("3800.HK", "SEPA", "2021-02-04")
+    # df = db.query_watchlist("SEPA", "A")
+    # print(df)

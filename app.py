@@ -6,6 +6,9 @@ import datetime as dt
 from configs.logger import Logger
 import pandas as pd
 from dbhelper import DBHelper
+import matplotlib
+# matplotlib.use('Svg')
+matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from patterns import vcp
 from patterns.all_patterns import Patterns
@@ -95,7 +98,7 @@ def getStockPatterns():
             # <button onclick=\"sortList('float', 'volume', 'desc')\">Sort By Volume Desc</button> \
         for index, row in patterns_df.iterrows():
             # logger.info(row["sid"])
-            sid = row["sid"].values[0]
+            sid = row["sid"]
             pct_chg = round(row["pct_diff"], 2)
             volume = row["volume"]
             converted_output += "<li volume='%s' return='%s'><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(vol: %s)</span></li>" %(volume, pct_chg, sid, pattern_name, sid, pct_chg, volume)
@@ -103,7 +106,7 @@ def getStockPatterns():
 
         converted_output += "<div class='content'>"
         for index, row in patterns_df.iterrows():
-            sid = row["sid"].values[0]
+            sid = row["sid"]
             converted_output += _get_stock_output(db, trading_date, sid, pattern_name, table_type=Tables.PATTERN_DETAILS.name)
         converted_output += "</div></div><br>"
 
@@ -157,9 +160,10 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, tab
 
     logger.info("saving plotting for [%s]"%(sid))
     img = io.BytesIO()
-    plt.savefig(img, format="png", bbox_inches="tight")
+    plt.savefig(img, format="jpg", bbox_inches="tight") # also support format="svg", format="png"
     img.seek(0)
-    pattern_obj = base64.b64encode(img.getvalue()).decode()
+    pattern_obj = base64.b64encode(img.getvalue()).decode("utf8")
+    img.close()
     plt.clf()
     plt.close("all")
     logger.info("plotting done for [%s]"%(sid))
@@ -393,7 +397,7 @@ def getWatchlist():
     if len(watchlist_df) > 0:
         converted_output = "<div><nav class='sidediv'> \
             <button class='start_date_btn sort_btn' sort='desc' onclick=\"sortList('date', 'start_date')\">start_date ↓</button> \
-            <button class='return_btn sort_btn' sort='desc' onclick=\"sortList('date', 'return')\">return ↓</button> \
+            <button class='return_btn sort_btn' sort='desc' onclick=\"sortList('float', 'return')\">return ↓</button> \
             <ul id='sideul'>"
             # <button onclick=\"sortList('date', 'start_date', 'asc')\">Sort By Date ASC</button> \
             # <button onclick=\"sortList('date', 'start_date', 'desc')\">Sort By Date Desc</button> \
