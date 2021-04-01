@@ -41,7 +41,6 @@ def find_patterns(df, sid, last_row_no=100):
     # print(temp_df[["Close", "sma_10", "sma_150", "sma_200", "52w_low"]])
     for i in range(start_window_unit, len(temp_df)+1):
         temp_sub_df = temp_df.iloc[i-start_window_unit:i]
-        # print(temp_sub_df)
         if temp_sub_df.iloc[-1]["sma_200"] < temp_sub_df.iloc[-1]["sma_150"] \
           and temp_sub_df.iloc[-1]["sma_150"] < temp_sub_df.iloc[-1]["Close"] \
           and temp_sub_df.iloc[-1]["52w_low"] * 1.25 < temp_sub_df.iloc[-1]["Close"] \

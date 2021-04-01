@@ -3,6 +3,12 @@
 from selenium.webdriver.chrome.options import Options
 import platform
 from datetime import datetime, timedelta
+import multiprocessing as mp
+
+CPU_COUNT = mp.cpu_count()
+DB_TIMEOUT = 30.0
+
+FAIL_STOCK_FILE = "fail_stock_list.csv"
 
 # output settings
 ALLOW_OVERWRITE = False # set False to read the data file instead of re-scraping
@@ -16,13 +22,12 @@ SECOND_TIME_OUT = 20
 SCROLL_PAUSE_TIME = 1
 SCRAP_PAUSE_TIME = 5
 # DB_QUERY_START_DATE = "2019-01-01"
-DB_QUERY_START_DATE = datetime.strftime(datetime.now() - timedelta(400), '%Y-%m-%d') # cal sma 200 from 180 days before
+DB_QUERY_START_DATE = datetime.strftime(datetime.now() - timedelta(500), '%Y-%m-%d') # cal sma 200 (~300 days) from 180 days before
 
 # TA settings
 CURRENT_VOLUME_FILTER = 1_000_000
 
 # flask config
-# HOST = "192.168.232.96"
 HOST = "192.168.2.225"
 PORT = 3050
 

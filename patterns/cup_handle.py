@@ -32,11 +32,12 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
             smooth_prices = df["Close"]
         else:
             smooth_prices = df["Close"].rolling(window=smoothing).mean().dropna()
-        # local_max = argrelextrema(smooth_prices.values, np.greater, order=neighbour, mode="clip")[0]
-        # local_min = argrelextrema(smooth_prices.values, np.less, order=neighbour, mode="clip")[0]
-        local_max = find_peaks(smooth_prices.values, distance=neighbour, prominence=prominence)[0]
-        local_max = np.append(local_max, len(df)-1, axis=None)
-        local_min = find_peaks(1/smooth_prices.values, distance=neighbour, prominence=prominence)[0]
+        local_max = argrelextrema(smooth_prices.values, np.greater, order=neighbour, mode="clip")[0]
+        local_min = argrelextrema(smooth_prices.values, np.less, order=neighbour, mode="clip")[0]
+        # local_max = find_peaks(smooth_prices.values, distance=neighbour, prominence=prominence)[0]
+        # local_max = np.append(local_max, len(df)-1, axis=None)
+        # local_min = find_peaks(1/smooth_prices.values, distance=neighbour, prominence=prominence)[0]
+        # local_min = np.append(local_min, len(df)-1, axis=None)
         # local_max = find_peaks_cwt(smooth_prices.values, np.arange(1, 1))
         # local_min = find_peaks_cwt(1/smooth_prices.values, np.arange(1, 1))
         price_local_max_dt = []

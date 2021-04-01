@@ -1,15 +1,19 @@
+import logging
+
 def show_pair_patterns(sid, patterns):
+    logger = logging.getLogger('MainLogger')
     if len(patterns) > 0:
-        print("processing: {}".format(sid))
+        logger.info("processing: {}".format(sid))
         for name, dates in patterns.items():
             for date in dates:
-                print("pattern {} range from {} to {}".format(name, date[0], date[1]))
+                logger.info("pattern {} range from {} to {}".format(name, date[0], date[1]))
 
 def show_single_patterns(sid, patterns):
+    logger = logging.getLogger('MainLogger')
     if len(patterns) > 0:
-        print("processing: {}".format(sid))
+        logger.info("processing: {}".format(sid))
         for name, dates in patterns.items():
-            print("pattern {} at {}".format(name, dates))
+            logger.info("pattern {} at {}".format(name, dates))
 
 def compute_growth(cal_df, field):
     # return (cal_df[field] - cal_df[field].shift(1)) / cal_df[field].shift(1) * 100

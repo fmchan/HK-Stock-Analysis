@@ -75,9 +75,9 @@ class DBHelper:
                     WHERE sid = '{sid}'
                     AND provider = '{provider}'
                     AND market = '{market}'
-                    AND date BETWEEN '{start}' AND '{end}'
+                    AND date(date) BETWEEN '{start}' AND '{end}'
                 """
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             if letter_case:
                 df.rename(columns={'date': 'Date', 'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
@@ -90,7 +90,7 @@ class DBHelper:
                 df['date'] = pd.to_datetime(df["date"]).dt.strftime('%Y-%m-%d')
             df.index = pd.to_datetime(df.index)
             df = df.sort_index()
-            self.logger.info("result returned for {}".format(sid))
+            self.logger.info("result returned for {} {}".format(sid, len(df)))
             return df
         except Exception as e:
             message = "Exception in query_stock: {}".format(e)
@@ -117,7 +117,7 @@ class DBHelper:
                         GROUP BY sid
                         HAVING AVG(volume) > {volume})
                 """
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             self.logger.info("query_stock_by_volume result returned")
             return df
@@ -136,7 +136,7 @@ class DBHelper:
                 if name is not None:
                     query += f" and name = '{name}'"
                 query += " ORDER BY name desc, sid"
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             self.logger.info("query_pattern result returned")
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
@@ -144,6 +144,22 @@ class DBHelper:
             return df
         except Exception as e:
             message = "Exception in query_pattern: {}".format(e)
+            self.logger.exception(message)
+            return message
+
+    def query_distinct_pattern(self):
+        try:
+            with sqlite3.connect(DB_PATH) as cnx:
+                query = f"""
+                    SELECT DISTINCT(name) as pattern FROM patterns
+                    ORDER BY name desc 
+                """
+                self.logger.debug(query)
+                df = pd.read_sql_query(query, cnx)
+            self.logger.info("query_distinct_pattern result returned")
+            return df
+        except Exception as e:
+            message = "Exception in query_distinct_pattern: {}".format(e)
             self.logger.exception(message)
             return message
 
@@ -163,7 +179,7 @@ class DBHelper:
                 """
                 self.logger.info(query)
                 df = pd.read_sql_query(query, cnx)
-            self.logger.info("query_pattern_w_pct_chg result returned")
+            self.logger.info("query_pattern_w_pct_chg result returned {}".format(len(df)))
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df
@@ -182,9 +198,9 @@ class DBHelper:
                 if name is not None:
                     query += f" and name = '{name}'"
                 query += " ORDER BY name desc"
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
-            self.logger.info("result returned for {}".format(sid))
+            self.logger.info("result returned for {} {}".format(sid, len(df)))
             df['start_date'] = pd.to_datetime(df["start_date"]).dt.strftime('%Y-%m-%d')
             # df['end_date'] = pd.to_datetime(df["end_date"]).dt.strftime('%Y-%m-%d')
             return df
@@ -218,7 +234,7 @@ class DBHelper:
                     SELECT * FROM incomes
                     WHERE sid = '{sid}'
                 """
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             self.logger.info("result returned for {}".format(sid))
             return df
@@ -280,7 +296,7 @@ class DBHelper:
                 query = f"""
                     SELECT count(1) as cnt FROM watchlist WHERE sid = '{sid}' AND status = 'A' AND pattern = '{pattern}' AND uid = '{uid}' AND end_date IS NULL
                 """
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             self.logger.info("watchlist result returned for {} for sid {}".format(pattern, sid))
             return df
@@ -366,7 +382,7 @@ class DBHelper:
                 #         ) as two
                 #     ON two.sid = one.sid 
                 # """
-                self.logger.info(query)
+                self.logger.debug(query)
                 df = pd.read_sql_query(query, cnx)
             self.logger.info("watchlist result returned for {} in status {}".format(pattern, status))
             return df
@@ -402,10 +418,6 @@ if __name__ == "__main__":
     provider = 'YAHOO'
     market = 'HK'
     sid = '0700.HK'
-    # sid = '1155.HK'
-    # sid = '1698.HK'
-    # sid = '8171.HK'
-    # sid = '8256.HK'
     # db.delete_expired_stocks(sid)
     df = db.query_stock(provider, market, sid, start='2019-04-01')
     # df = db.query_pattern(start_date='2021-01-15')

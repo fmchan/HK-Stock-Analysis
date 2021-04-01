@@ -37,10 +37,9 @@
           <th>Pattern:</th>
           <td>
             <select id="pattern_name" name="pattern_name" required>
-              <option selected="selected" value="SEPA">SEPA</option>
-              <option value="SEPA2">SEPA2</option>
-              <option value="SEPA3">SEPA3</option>
-              <option value="CUP_HANDLE">Cup & Handle</option>
+              {% for pattern in patterns %}
+                <option value="{{pattern}}" {% if pattern == "SEPA" %}selected="selected"{% endif %} >{{pattern}}</option>
+              {% endfor %}
             </select>
           </td>
         </tr>

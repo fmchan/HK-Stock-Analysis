@@ -1,7 +1,7 @@
 #-*- coding: utf-8 -*-
 import os
 from flask import Flask, request, jsonify, render_template
-from configs.settings import HOST, PORT, DB_QUERY_START_DATE, DATA_PATH
+from configs.settings import HOST, PORT, DB_QUERY_START_DATE, DATA_PATH, CPU_COUNT
 import datetime as dt
 from configs.logger import Logger
 import pandas as pd
@@ -26,7 +26,11 @@ from configs.settings import DB_PATH
 import sqlite3
 from models.watchlist import Watchlist
 from configs.table_types import Tables
+import multiprocessing as mp
+import time
+import asyncio
 
+db = DBHelper()
 pd.set_option('display.max_columns', None)
 app = Flask(__name__, template_folder="static")
 app.config["JSON_AS_ASCII"] = False
@@ -38,11 +42,11 @@ def make_cache_key(*args, **kwargs):
 
 @app.route("/")
 def index():
-    return app.send_static_file("index.html")
+    patterns = db.query_distinct_pattern()
+    return render_template('index.html', patterns = patterns["pattern"])
 
 @app.route("/compareStockPatterns", methods=["GET"])
 def compareStockPatterns():
-    db = DBHelper()
     trading_date = request.args.get("trading_date")
     logger.info("compare patterns which dated on [%s]"%(trading_date))
 
@@ -77,15 +81,16 @@ def compareStockPatterns():
 @app.route("/getStockPatterns", methods=["GET"])
 @cache.cached(timeout=3600, key_prefix=make_cache_key)
 def getStockPatterns():
-    db = DBHelper()
+    start_time = time.time()
     trading_date = request.args.get("trading_date")
     pattern_name = request.args.get("pattern_name")
     min_volume = float(request.args.get("min_volume")) * 1_000_000
     max_volume = float(request.args.get("max_volume")) * 1_000_000
     logger.info("start finding [%s] patterns in volume range [%s] to [%s] which dated on [%s]"%(pattern_name, min_volume, max_volume, trading_date))
+    sid_list = []
 
     patterns_df = db.query_pattern_w_pct_chg(start_date=trading_date, name=pattern_name, min_volume=min_volume, max_volume=max_volume)
-    logger.info("total stocks: [%s] "%(len(patterns_df)))
+    logger.debug("total stocks: [%s] "%(len(patterns_df)))
     if len(patterns_df) > 0:
         # converted_output = "<div><nav class='sidediv'><ul>"
         converted_output = "<div><nav class='sidediv'> \
@@ -97,39 +102,46 @@ def getStockPatterns():
             # <button onclick=\"sortList('float', 'volume', 'asc')\">Sort By Volume ASC</button> \
             # <button onclick=\"sortList('float', 'volume', 'desc')\">Sort By Volume Desc</button> \
         for index, row in patterns_df.iterrows():
-            # logger.info(row["sid"])
             sid = row["sid"]
+            sid_list.append(sid)
             pct_chg = round(row["pct_diff"], 2)
             volume = row["volume"]
             converted_output += "<li volume='%s' return='%s'><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(vol: %s)</span></li>" %(volume, pct_chg, sid, pattern_name, sid, pct_chg, volume)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
-        for index, row in patterns_df.iterrows():
-            sid = row["sid"]
-            converted_output += _get_stock_output(db, trading_date, sid, pattern_name, table_type=Tables.PATTERN_DETAILS.name)
+        num_processes = CPU_COUNT
+        if len(patterns_df) > num_processes*2:
+            logger.info("start multiprocessing")
+            with mp.Pool(processes=num_processes) as pool:
+                results = [pool.apply_async(_get_stock_output, args=[trading_date, sid, pattern_name, False, Tables.PATTERN_DETAILS.name, None]) for sid in sid_list]
+                for output in results:
+                    converted_output += output.get()
+        else:
+            for sid in sid_list:
+                converted_output += _get_stock_output(trading_date, sid, pattern_name, False, Tables.PATTERN_DETAILS.name, None)
         converted_output += "</div></div><br>"
 
-        logger.info("end of getStockPatterns()")
+        logger.info("getStockPatterns() takes %s seconds", time.time() - start_time)
         return render_template('result.html', trading_date = trading_date, content = converted_output)
     else:
         return "no pattern found"
 
-def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, table_type=Tables.PATTERN_DETAILS.name, start_date=None):
+def _get_stock_output(trading_date, sid, pattern_name, bin_volume=False, table_type=Tables.PATTERN_DETAILS.name, start_date=None):
     logger.info("getting output for %s "%(sid))
     aastock_code = sid.split(".")[0].zfill(5)
     aastock_dynamic_chart_image_url = "http://www.aastocks.com/tc/stocks/quote/dynamic-chart.aspx?symbol={}".format(aastock_code)
     aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
 
     df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, letter_case=True)
-    logger.info("[%s] returns len(%s) "%(sid, len(df)))
+    logger.debug("[%s] returns len(%s) "%(sid, len(df)))
     df = _compute_pattern_features(pattern_name, df, bin_volume)
     df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
 
     plot_df = df.copy()
     plot_df["date"] = plot_df["date"].astype(str)
     pattern_df = db.query_stock_pattern(sid, pattern_name) # to avoid too much patterns to be plot
-    logger.info("[%s] returns len(%s) "%(pattern_name, len(pattern_df)))
+    logger.debug("[%s] returns len(%s) "%(pattern_name, len(pattern_df)))
     # stock_pattern_df = db.query_stock_pattern(sid) # to display all kinds of patterns for single stock
     stock_pattern_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="right")
     stock_pattern_df["start_date"] = stock_pattern_df["start_date"].astype(str)
@@ -138,7 +150,7 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, tab
     stock_pattern_df["date"] = pd.to_datetime(stock_pattern_df["date"])
     stock_pattern_df = stock_pattern_df[stock_pattern_df["date"] > past_6_month]
     # stock_pattern_df = stock_pattern_df.iloc[-120:] # show latest 6 months (20 days * 6)
-    logger.info("plotting start for [%s]"%(sid))
+    logger.debug("plotting start for [%s]"%(sid))
     fig, ax = plt.subplots(figsize=(10, 4))
     if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
         stock_pattern_df = stock_pattern_df[(stock_pattern_df["sma_200"] > 0)]
@@ -158,7 +170,7 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, tab
         ax = stock_pattern_df.plot(x="date", y="pattern_point", ax=ax, kind="scatter", label=pattern_name, marker="v", color="red")
         ax = ax.scatter(stock_pattern_df[stock_pattern_df["date"]==trading_date]["date"], stock_pattern_df[stock_pattern_df["date"]==trading_date]["pattern_point"], label="as at", marker="v", color="darkred")
 
-    logger.info("saving plotting for [%s]"%(sid))
+    logger.debug("saving plotting for [%s]"%(sid))
     img = io.BytesIO()
     plt.savefig(img, format="jpg", bbox_inches="tight") # also support format="svg", format="png"
     img.seek(0)
@@ -166,7 +178,7 @@ def _get_stock_output(db, trading_date, sid, pattern_name, bin_volume=False, tab
     img.close()
     plt.clf()
     plt.close("all")
-    logger.info("plotting done for [%s]"%(sid))
+    logger.debug("plotting done for [%s]"%(sid))
 
     data_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="inner")
     data_df = _post_process_features(data_df)
@@ -243,7 +255,7 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
     return df
 
-def _append_features_data(db, sid, trading_date):
+def _append_features_data(sid, trading_date):
     end_date = (datetime.strptime(trading_date, "%Y-%m-%d") + timedelta(1)).strftime("%Y-%m-%d")
     df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, end=end_date, letter_case=True)
     df = _compute_pattern_features("SEPA", df)
@@ -258,7 +270,6 @@ def stockScreener():
 
 @app.route("/getIncomeSummary", methods=["GET"])
 def getIncomeSummary():
-    db = DBHelper()
     min_eps_growth = request.args.get("min_eps_growth")
     min_net_profit_growth = request.args.get("min_net_profit_growth")
     is_increase = request.args.get("is_increase")
@@ -311,9 +322,6 @@ def _get_summary_output(sid, data_df):
     aastock_earnings_summary_url = "http://www.aastocks.com/en/stocks/analysis/company-fundamental/earnings-summary?symbol={}".format(aastock_code)
     aastock_chart_image_url = "http://charts.aastocks.com/servlet/Charts?fontsize=12&15MinDelay=T&lang=1&titlestyle=1&vol=1&Indicator=1&indpara1=10&indpara2=20&indpara3=50&indpara4=150&indpara5=200&subChart1=2&ref1para1=14&ref1para2=0&ref1para3=0&subChart2=3&ref2para1=12&ref2para2=26&ref2para3=9&scheme=6&com=100&chartwidth=870&chartheight=700&stockid={}.HK&period=6&type=1".format(aastock_code)
 
-    # incomes_df = pd.read_csv(DATA_PATH + 'incomes_df.csv', index_col=False)
-    # incomes_df = incomes_df.sort_values(by="year", ascending=True)
-    # income_df = incomes_df[incomes_df["sid"] == sid]
     data_df = data_df[["period", "year", "month", "frequency", "basic_eps", "eps_growth", "net_profit", "net_profit_growth"]]
     # data_df["net_profit_million"] = (data_df["net_profit"].astype(float)/1000000).round(2)
     # data_df["net_profit"] = data_df["net_profit_million"].astype(str) + "M"
@@ -384,10 +392,11 @@ def watchlist():
 
 @app.route("/getWatchlist", methods=["GET"])
 def getWatchlist():
-    db = DBHelper()
     pattern_name = request.args.get("pattern_name")
     status = request.args.get("status")
     logger.info("start finding [%s] patterns for [%s] status"%(pattern_name, status))
+    sid_list = []
+    start_date_list = []
     if status == "A":
         table_type = table_type=Tables.WATCHLIST.name
     elif status == "I":
@@ -404,18 +413,25 @@ def getWatchlist():
             # <button onclick=\"sortList('float', 'return', 'asc')\">Sort By Return ASC</button> \
             # <button onclick=\"sortList('float', 'return', 'desc')\">Sort By Return Desc</button> \
         for index, row in watchlist_df.iterrows():
-            # logger.info(row["sid"])
             sid = row["sid"]
+            sid_list.append(sid)
             start_date = row["start_date"][:10]
+            start_date_list.append(start_date)
             pct_chg = round(row["pct_diff"], 2)
             converted_output += "<li start_date='%s' return='%s'><a href='#%s.%s'>%s</a> (<span class='price_movement'>%s</span>)<br><span>(%s)</span></li>" %(start_date, pct_chg, sid, pattern_name, sid, pct_chg, start_date)
         converted_output += "</ul></nav>"
 
         converted_output += "<div class='content'>"
-        for index, row in watchlist_df.iterrows():
-            sid = row["sid"]
-            start_date = row["start_date"][:10]
-            converted_output += _get_stock_output(db, None, sid, pattern_name, table_type=table_type, start_date=start_date)
+        num_processes = CPU_COUNT
+        if len(watchlist_df) > num_processes*2:
+            logger.info("start multiprocessing")
+            with mp.Pool(processes=num_processes) as pool:
+                results = [pool.apply_async(_get_stock_output, args=[None, sid, pattern_name, False, table_type, start_date]) for sid, start_date in zip(sid_list, start_date_list)]
+                for output in results:
+                    converted_output += output.get()
+        else:
+            for sid, start_date in zip(sid_list, start_date_list):
+                converted_output += _get_stock_output(None, sid, pattern_name, table_type=table_type, start_date=start_date)
         converted_output += "</div></div><br>"
 
         logger.info("end of getWatchlist()")

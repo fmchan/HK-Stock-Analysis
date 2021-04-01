@@ -23,7 +23,7 @@ if __name__ == "__main__":
     logger = Logger("MainLogger").setup_system_logger()
     logger.info("stocks price scheduler just restarted")
     scheduler = BackgroundScheduler()
-    scheduler.add_job(update_and_process, "cron", hour="17,21,0", minute="0")
+    scheduler.add_job(update_and_process, "cron", hour="18,21,0", minute="0")
     scheduler.start()
     while True:
         schedule.run_pending()
