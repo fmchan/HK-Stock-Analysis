@@ -3,6 +3,7 @@ import logging
 import patterns.cup_handle as cup_handle
 import patterns.td_differential_group as td_differential_group
 import patterns.trendline as trendline
+import patterns.sepa as sepa
 import patterns.vcp as vcp
 from dbhelper import DBHelper
 from datautils import pattern_utils
@@ -45,8 +46,12 @@ def _compute_patterns_core(sid, last_row_no):
             # td_differential_group.td_anti_differential(sid, df)
 
             # SEPA
-            vcp_patterns = vcp.find_patterns(df, sid, last_row_no=last_row_no) # only compute last 3 rows
-            pattern_utils.show_single_patterns(sid, vcp_patterns)
+            sepa_patterns = sepa.find_patterns(df, sid, last_row_no=last_row_no) # only compute last 3 rows
+            pattern_utils.show_single_patterns(sid, sepa_patterns)
+
+            # VCP
+            # vcp_patterns = vcp.find_vcp_patterns(df, sid)
+            # pattern_utils.show_single_patterns(sid, vcp_patterns)
 
             # Trend Lines
             # flat_base_patterns = trendline.find_flat_base_patterns(df, sid)

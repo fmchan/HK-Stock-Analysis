@@ -10,7 +10,7 @@ import matplotlib
 # matplotlib.use('Svg')
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
-from patterns import vcp
+from patterns import sepa
 from patterns.all_patterns import Patterns
 import numpy as np
 import io
@@ -246,7 +246,7 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
         # print(df[data_df["count"] > 1].tail(10))
 
     if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
-        df = vcp.compute_vcp_features(df)
+        df = sepa.compute_sepa_features(df)
         if bin_volume:
             df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "ema_50", "ema_150", "ema_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "ema_volume_20d", "cum_volume", "cum_volume_pect"]]
         else:

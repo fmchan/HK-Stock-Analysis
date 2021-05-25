@@ -165,7 +165,7 @@ class DBHelper:
 
     def query_pattern_w_pct_chg(self, start_date, name, min_volume, max_volume):
         try:
-            from_date = datetime.strftime(datetime.now()-timedelta(4), '%Y-%m-%d')
+            from_date = datetime.strftime(datetime.now()-timedelta(10), '%Y-%m-%d')
             with sqlite3.connect(DB_PATH) as cnx:
                 query = f"""
                 SELECT pt.start_date as start_date, pt.end_date as end_date, pt.sid as sid, pt.name as name, 100.0*(curr.close - prev.close) / prev.close As pct_diff, prev.volume as volume 
