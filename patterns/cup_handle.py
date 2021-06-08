@@ -23,8 +23,10 @@ peak_depth = 1.05
 step_depth = 1.01
 start_end_price_ratio_difference = 0.07
 
+logger = logging.getLogger('MainLogger')
+
 def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False):
-    logger = logging.getLogger('MainLogger')
+    max_min = pd.DataFrame()
     try:
         if neighbour == 0: # min neighbour is 1
             neighbour = 1
@@ -52,19 +54,20 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
                 price_local_min_dt.append(df.index.values[i])
             elif (i > window_range) and (i < len(df) - window_range):
                 price_local_min_dt.append(df.iloc[i - window_range : i + window_range]["Close"].idxmin())
-        maxima = pd.DataFrame(df.loc[price_local_max_dt])
-        minima = pd.DataFrame(df.loc[price_local_min_dt])
-        max_min = pd.concat([maxima, minima]).sort_index()
-        max_min.index.name = "DateTime"
-        max_min['Date'] = pd.to_datetime(max_min["Date"])
-        max_min = max_min.reset_index()
-        max_min = max_min[~max_min.DateTime.duplicated()]
-        # p = df.reset_index()
-        # max_min["day_num"] = p[p["Date"].isin(max_min.DateTime)].index.values
-        # max_min = max_min.set_index("day_num")["Close"]
-        if debug:
-            print(maxima[["Close"]])
-            print(minima[["Close"]])
+        if len(price_local_max_dt) > 0 and len(price_local_min_dt) > 0:
+            maxima = pd.DataFrame(df.loc[price_local_max_dt])
+            minima = pd.DataFrame(df.loc[price_local_min_dt])
+            max_min = pd.concat([maxima, minima]).sort_index()
+            max_min.index.name = "DateTime"
+            max_min['Date'] = pd.to_datetime(max_min["Date"])
+            max_min = max_min.reset_index()
+            max_min = max_min[~max_min.DateTime.duplicated()]
+            # p = df.reset_index()
+            # max_min["day_num"] = p[p["Date"].isin(max_min.DateTime)].index.values
+            # max_min = max_min.set_index("day_num")["Close"]
+            if debug:
+                print(maxima[["Close"]])
+                print(minima[["Close"]])
         return max_min
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
@@ -74,7 +77,6 @@ def get_max_min(df, smoothing, window_range, neighbour, prominence, debug=False)
         return ""
 
 def find_patterns(sid, max_min, min_period=27, peak_depth=1.05, start_end_price_ratio_difference=0.07, max_radius_difference=5, step_depth=1.01):
-    logger = logging.getLogger('MainLogger')
     try:
         patterns = defaultdict(list)
         db = DBHelper()

@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from patterns import sepa
+from patterns import vcp
 from patterns.all_patterns import Patterns
 import numpy as np
 import io
@@ -45,10 +46,10 @@ def index():
     patterns = db.query_distinct_pattern()
     return render_template('index.html', patterns = patterns["pattern"])
 
-@app.route("/compareStockPatterns", methods=["GET"])
-def compareStockPatterns():
+@app.route("/compareSEPAStockPatterns", methods=["GET"])
+def compareSEPAStockPatterns():
     trading_date = request.args.get("trading_date")
-    logger.info("compare patterns which dated on [%s]"%(trading_date))
+    logger.info("compare SEPA patterns which dated on [%s]"%(trading_date))
 
     SEPA_df = db.query_pattern(start_date=trading_date, name="SEPA")
     SEPA2_df = db.query_pattern(start_date=trading_date, name="SEPA2")
@@ -75,7 +76,30 @@ def compareStockPatterns():
     # report_df.columns = report_df.columns.droplevel(0)
     # print(report_df)
     converted_output = report_df.to_html(index=False)
-    logger.info("end of compareStockPatterns()")
+    logger.info("end of compareSEPAStockPatterns()")
+    return render_template('compare.html', trading_date = trading_date, content = converted_output)
+
+@app.route("/compareVCPStockPatterns", methods=["GET"])
+def compareVCPStockPatterns():
+    trading_date = request.args.get("trading_date")
+    logger.info("compare VCP patterns which dated on [%s]"%(trading_date))
+
+    vcp_df = db.query_pattern(start_date=trading_date, name="VCP")
+    vcp_ta1_df = db.query_pattern(start_date=trading_date, name="VCP_TA1")
+    vcp_ta2_df = db.query_pattern(start_date=trading_date, name="VCP_TA2")
+    vcp_ta3_df = db.query_pattern(start_date=trading_date, name="VCP_TA3")
+
+    frames = [vcp_df["sid"], vcp_ta1_df["sid"], vcp_ta2_df["sid"], vcp_ta3_df["sid"]]
+    report = pd.concat(frames, keys=["sid", "sid", "sid", "sid"], ignore_index=True).drop_duplicates()
+    report_df = pd.DataFrame({"sid":report.values})
+    report_df.sort_values("sid", inplace=True)
+    report_df["VCP"], report_df["VCP_TA1"], report_df["VCP_TA2"], report_df["VCP_TA3"] = report_df["sid"].isin(vcp_df["sid"]).astype(bool), report_df["sid"].isin(vcp_ta1_df["sid"]).astype(bool), report_df["sid"].isin(vcp_ta2_df["sid"]).astype(bool), report_df["sid"].isin(vcp_ta3_df["sid"]).astype(bool)
+    for col in report_df.columns:
+        report_df[col] = report_df[col].replace({True:"✓", False:""})
+    report_df.style.set_properties(**{"text-align": "center"})
+    report_df = report_df.reset_index(drop=True)
+    converted_output = report_df.to_html(index=False)
+    logger.info("end of compareVCPStockPatterns()")
     return render_template('compare.html', trading_date = trading_date, content = converted_output)
 
 @app.route("/getStockPatterns", methods=["GET"])
@@ -155,7 +179,15 @@ def _get_stock_output(trading_date, sid, pattern_name, bin_volume=False, table_t
     if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
         stock_pattern_df = stock_pattern_df[(stock_pattern_df["sma_200"] > 0)]
         stock_pattern_df.plot(x="date", y=["close", "sma_50", "ema_50", "sma_150", "ema_150", "sma_200", "ema_200", "52w_low", "52w_high"], ax=ax)
-    elif "CUP_HANDLE" == pattern_name:
+    elif pattern_name in ["VCP_TA1"]:
+        stock_pattern_df = stock_pattern_df[(stock_pattern_df["sma_200"] > 0)]
+        stock_pattern_df.plot(x="date", y=["close", "sma_200", "30w_avg", "40w_avg"], ax=ax)
+    elif pattern_name in ["VCP_TA2"]:
+        stock_pattern_df = stock_pattern_df[(stock_pattern_df["50w_sma"] > 0)]
+        stock_pattern_df.plot(x="date", y=["close", "13w_ema", "26w_ema", "50w_sma", "40w_sma", "50w_low", "50w_high", "13d_ema", "26d_ema", "40d_sma", "50d_sma"], ax=ax)
+    elif pattern_name in ["VCP"]:
+        stock_pattern_df.plot(x="date", y=["close", "52w_high"], ax=ax)
+    else:
         stock_pattern_df.plot(x="date", y=["close"], ax=ax)
 
     if bin_volume:
@@ -181,7 +213,7 @@ def _get_stock_output(trading_date, sid, pattern_name, bin_volume=False, table_t
     logger.debug("plotting done for [%s]"%(sid))
 
     data_df = pd.merge(pattern_df, plot_df, left_on="start_date", right_on="date", how="inner")
-    data_df = _post_process_features(data_df)
+    data_df = _post_process_features(data_df, pattern_name)
     data_df.insert(0, "pattern", pattern_name) # loc at first
     data_df.drop(["pattern", "start_date", "end_date", "name", "sid_x", "sid_y"], axis=1, inplace=True)
 
@@ -215,14 +247,17 @@ def _get_stock_output(trading_date, sid, pattern_name, bin_volume=False, table_t
     logger.info("total patterns for [%s]: [%s] "%(sid, len(data_df)))
     return converted_output
 
-def _post_process_features(df):
-    df["52w_low_pct_chg"] = df["52w_low_pct_chg"].round().astype(int).astype(str) + "%"
-    df["52w_high_pct_chg"] = df["52w_high_pct_chg"].round().astype(int).astype(str) + "%"
+def _post_process_features(df, pattern_name):
+    if pattern_name in ["SEPA", "SEPA2", "SEPA3"]:
+        df["52w_low_pct_chg"] = df["52w_low_pct_chg"].round().astype(int).astype(str) + "%"
+        df["52w_high_pct_chg"] = df["52w_high_pct_chg"].round().astype(int).astype(str) + "%"
+        df["avg_volume_5d"] = (df['avg_volume_5d'].astype(float)/1000000).round(2).astype(str) + "M"
+        df["ema_volume_20d"] = (df['ema_volume_20d'].astype(float)/1000000).round(2).astype(str) + "M"
+    elif pattern_name in ["VCP_TA1"]:
+        df["obv"] = (df['obv'].astype(float)/1000000).round(2).astype(str) + "M"
+    elif pattern_name in ["VCP_TA3"]:
+        df["5d_volume_sma"] = (df['5d_volume_sma'].astype(float)/1000000).round(2).astype(str) + "M"
     df["volume"] = (df['volume'].astype(float)/1000000).round(2).astype(str) + "M"
-    df["avg_volume_5d"] = (df['avg_volume_5d'].astype(float)/1000000).round(2).astype(str) + "M"
-    df["ema_volume_20d"] = (df['ema_volume_20d'].astype(float)/1000000).round(2).astype(str) + "M"
-    # df["avg_volume_5d"] = df["avg_volume_5d"].astype('int64')
-    # df["ema_volume_20d"] = df["ema_volume_20d"].astype('int64')
     df = df.round(2)
     return df
 
@@ -251,18 +286,28 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
             df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "ema_50", "ema_150", "ema_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "ema_volume_20d", "cum_volume", "cum_volume_pect"]]
         else:
             df = df[["sid", "Date", "Open", "High", "Low", "Close", "sma_10", "sma_50", "sma_150", "sma_200", "ema_50", "ema_150", "ema_200", "52w_low", "52w_low_pct_chg", "52w_high", "52w_high_pct_chg", "Volume", "avg_volume_5d", "ema_volume_20d"]]
-    elif "CUP_HANDLE" == pattern_name:
+    elif pattern_name in ["VCP_TA1"]:
+        df = vcp.compute_vcp_features(df)
+        df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume", "obv", "rsi", "sma_200", "30w_avg", "40w_avg"]]
+    elif pattern_name in ["VCP_TA2"]:
+        df = vcp.compute_vcp_features(df)
+        df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume", "13w_ema", "26w_ema", "50w_sma", "40w_sma", "50w_low", "50w_high", "13d_ema", "26d_ema", "40d_sma", "50d_sma"]]
+    elif pattern_name in ["VCP_TA3"]:
+        df = vcp.compute_vcp_features(df)
+        df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume", "5d_volume_sma", "52w_high"]]
+    else:
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
+
     return df
 
-def _append_features_data(sid, trading_date):
-    end_date = (datetime.strptime(trading_date, "%Y-%m-%d") + timedelta(1)).strftime("%Y-%m-%d")
-    df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, end=end_date, letter_case=True)
-    df = _compute_pattern_features("SEPA", df)
-    df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
-    df = _post_process_features(df)
-    # print(df.tail(1))
-    return df.tail(1)
+# def _append_features_data(sid, trading_date):
+#     end_date = (datetime.strptime(trading_date, "%Y-%m-%d") + timedelta(1)).strftime("%Y-%m-%d")
+#     df = db.query_stock("YAHOO", "HK", sid, start=DB_QUERY_START_DATE, end=end_date, letter_case=True)
+#     df = _compute_pattern_features("SEPA", df)
+#     df.rename(columns={"Date": "date", "Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"}, inplace=True)
+#     df = _post_process_features(df)
+#     # print(df.tail(1))
+#     return df.tail(1)
 
 @app.route("/stockScreener")
 def stockScreener():

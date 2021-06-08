@@ -6,7 +6,6 @@ import pandas_ta as ta
 from dbhelper import DBHelper
 from datetime import datetime
 import logging
-import pandas_ta as ta
 
 volume_rolling_period = 5
 
