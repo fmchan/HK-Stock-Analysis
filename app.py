@@ -284,6 +284,9 @@ def _compute_pattern_features(pattern_name, df, bin_volume=False):
     elif pattern_name in ["VCP_TA3"]:
         df = vcp.compute_vcp_features(df)
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume", "5d_volume_sma", "52w_high"]]
+    elif pattern_name in ["VCP"]:
+        df = vcp.compute_vcp_features(df)
+        df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume", "52w_high"]]
     else:
         df = df[["sid", "Date", "Open", "High", "Low", "Close", "Volume"]]
 
