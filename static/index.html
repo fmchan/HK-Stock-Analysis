@@ -68,12 +68,7 @@ body {
         </tr>
         <tr>
           <td>
-            <button type="submit" formaction="/compareSEPAStockPatterns" id="compareSEPAStockPatterns">Compare SEPA patterns</button>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <button type="submit" formaction="/compareVCPStockPatterns" id="compareVCPStockPatterns">Compare VCP patterns</button>
+            <button type="submit" formaction="/compareStockPatterns" id="compareStockPatterns">Compare SEPA patterns</button>
           </td>
         </tr>
       </table>
@@ -91,8 +86,8 @@ body {
       <td>SEPA1:</td>
       <td>
         SMA 200 < SMA 150 and <br>
-        SMA 150 < Close and <br>
-        52 week low * 1.25 < Close and <br>
+        SMA 150 < close and <br>
+        52 week low * 1.25 < close and <br>
         avg 5 day volume < volume
       </td>
     </tr>
@@ -101,9 +96,9 @@ body {
       <td>
         SMA 200 < SMA 150 and <br>
         SMA 150 < SMA 50 and <br>
-        SMA 50 < Close and <br>
-        52 week low * 1.3 < Close and <br>
-        52 week high * 0.75 < Close and <br>
+        SMA 50 < close and <br>
+        52 week low * 1.3 < close and <br>
+        52 week high * 0.75 < close and <br>
         avg 5 day volume < volume
       </td>
     </tr>
@@ -112,45 +107,12 @@ body {
       <td>
         EMA 200 < EMA 150 and <br>
         EMA 150 < EMA 50 and <br>
-        EMA 50 < Close and <br>
-        52 week low * 1.3 < Close and <br>
-        52 week high * 0.75 < Close and <br>
+        EMA 50 < close and <br>
+        52 week low * 1.3 < close and <br>
+        52 week high * 0.75 < close and <br>
         EMA 5 day volume < volume  
       </td>
     </tr>
-    <tr>
-      <td>VCP_TA1:</td>
-      <td>
-        OBV > previous OBV and <br>
-        RSI > previous RSI and <br>
-        Close > SMA 200 and <br>
-        Close > 30 week average and <br>
-        Close > 40 week average and <br>
-        30 week average > 40 week average
-      </td>
-    </tr>
-    <tr>
-      <td>VCP_TA2</td>
-      <td>
-        13 week EMA > 26 week EMA and <br>
-        26 week EMA > 50 week SMA and <br>
-        40 week SMA > 40 day SMA 5 weeks ago and <br>
-        Close >= 50 week low * 1.3 and <br>
-        Close >= 50 week high * 0.75 and <br>
-        13 day EMA 20 days ago > 26 day EMA 20 weeks ago and <br>
-        40 day SMA 5 weeks ago > 40 day SMA 10 weeks ago and <br>
-        Close > 50 day SMA
-      </td>
-    </tr>
-    <tr>
-      <td>VCP_TA3</td>
-      <td>
-        Volume < 5 day SMA Volume for 5 days consequently and <br>
-        Close < 52 week high and <br>
-        Close > 52 week high * 0.6 and <br>
-        (5 day high - 5 day low) / Close < 0.1 and <br>
-        5 day Close == 5 day high <br>
-      </td>
   </table>
 </div>
 </body>

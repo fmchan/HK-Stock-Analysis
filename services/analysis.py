@@ -13,7 +13,8 @@ from datetime import datetime
 import multiprocessing as mp
 from configs.logger import Logger
 
-logger = logging.getLogger('MainLogger')
+logger = Logger("MainLogger").setup_system_logger() # setup pool.apply_async logging
+# logger = logging.getLogger('MainLogger') 
 db = DBHelper()
 
 def compute_patterns(last_row_no=3):
@@ -49,12 +50,8 @@ def _compute_patterns_core(sid, last_row_no):
             pattern_utils.show_single_patterns(sid, sepa_patterns)
 
             # VCP
-            vcp_patterns, peak_pattern = vcp.find_vcp_patterns(df, sid)
-            pattern_utils.show_single_patterns(sid, vcp_patterns)
-
-            # VCP TA
-            vcp_patterns = vcp.find_vcp_patterns_by_ta(df, sid)
-            pattern_utils.show_single_patterns(sid, vcp_patterns)
+            # vcp_patterns = vcp.find_vcp_patterns(df, sid)
+            # pattern_utils.show_single_patterns(sid, vcp_patterns)
 
             # Trend Lines
             # flat_base_patterns = trendline.find_flat_base_patterns(df, sid)
