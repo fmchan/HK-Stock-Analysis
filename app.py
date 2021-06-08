@@ -64,17 +64,6 @@ def compareSEPAStockPatterns():
         report_df[col] = report_df[col].replace({True:"✓", False:""})
     report_df.style.set_properties(**{"text-align": "center"})
     report_df = report_df.reset_index(drop=True)
-    # data_df = pd.DataFrame()
-    # for index, stock_df in report_df.iterrows():
-    #     sid = stock_df["sid"]
-    #     df = _append_features_data(db, sid, trading_date)
-    #     df.drop("date", axis=1, inplace=True)
-    #     data_df = data_df.append(df)
-    # data_df = data_df.reset_index(drop=True)
-    # report_df = pd.concat([report_df, data_df], keys=["sid", "sid"], ignore_index=False, axis=1).T.drop_duplicates().T
-    # report_df = report_df.reset_index(drop=True)
-    # report_df.columns = report_df.columns.droplevel(0)
-    # print(report_df)
     converted_output = report_df.to_html(index=False)
     logger.info("end of compareSEPAStockPatterns()")
     return render_template('compare.html', trading_date = trading_date, content = converted_output)
