@@ -425,7 +425,9 @@ def _get_summary_output(sid, data_df):
 
 @app.route("/watchlist")
 def watchlist():
-    return app.send_static_file("watchlist.html")
+    patterns = db.query_distinct_pattern()
+    return render_template('watchlist.html', patterns = patterns["pattern"])
+    # return app.send_static_file("watchlist.html", patterns = patterns["pattern"])
 
 @app.route("/getWatchlist", methods=["GET"])
 def getWatchlist():

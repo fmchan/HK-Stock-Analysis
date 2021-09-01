@@ -33,6 +33,22 @@ body {
 <div class="container">
   <br>
   <h2>Stock Patterns Founder</h2>
+  <div class="row" >
+    <form action="/" method="get" target="_blank">
+      <table>
+        <tr>
+          <td>
+            <button type="submit" formaction="/watchlist" id="watchlist">Go to watchlist</button>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <button type="submit" formaction="/stockScreener" id="stockScreener">Go to stock screener</button>
+          </td>
+        </tr>
+      </table>
+    </form>
+  </div>
   <p>To get the stock patterns</p>
   <div class="row" >
     <form action="/getStockPatterns" method="get" target="_blank">
@@ -130,7 +146,7 @@ body {
       </td>
     </tr>
     <tr>
-      <td>VCP_TA2</td>
+      <td>VCP_TA2:</td>
       <td>
         13 week EMA > 26 week EMA and <br>
         26 week EMA > 50 week SMA and <br>
@@ -143,7 +159,7 @@ body {
       </td>
     </tr>
     <tr>
-      <td>VCP_TA3</td>
+      <td>VCP_TA3:</td>
       <td>
         Volume < 5 day SMA Volume for 5 days consequently and <br>
         Close < 52 week high and <br>
